@@ -27,8 +27,17 @@
     .row-hover:hover { background: #fafbfc; }
     /* Data-view: row hover light grey, focused cell slightly darker */
     tr.data-row:hover > td { background: #f5f6f8; }
-    tr.data-row:hover > td.data-cell:hover { background: #e2e2e8; }
-    tr.data-row > td.data-cell-active { background: #e2e2e8 !important; }
+    tr.data-row:hover > td.data-cell:hover { background: #edeef2; }
+    /* Selected cell — white bg, 2px black inset outline */
+    tr.data-row > td.data-cell-active,
+    tr.data-row:hover > td.data-cell.data-cell-active,
+    tr.data-row:hover > td.data-cell.data-cell-active:hover {
+      background: #ffffff !important;
+      outline: 2px solid #1c212b;
+      outline-offset: -2px;
+      position: relative;
+      z-index: 1;
+    }
     /* Inner shadow for selected nav item underline */
     .nav-active::after {
       content: '';
@@ -51,6 +60,29 @@
       yellow40:'#bf8519', yellow10:'#fcdfa5',
       seafoam52:'#3c7d7a',
     };
+
+    /* Small entity-chip pill used for Name / Contract / Counterparty cells */
+    function EntityChip({ label, kind }) {
+      const iconColor = '#43474f';
+      const icon = kind === 'entity' ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <rect x="2" y="1.5" width="8" height="9" rx="1" stroke={iconColor} strokeWidth="1.1"/>
+          <path d="M4 4h1M7 4h1M4 6h1M7 6h1M4 8h1M7 8h1" stroke={iconColor} strokeWidth="1.1" strokeLinecap="round"/>
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 1.5h4.5L9 3v7.5H3v-9z" stroke={iconColor} strokeWidth="1.1" strokeLinejoin="round"/>
+          <path d="M7 1.5V3h2" stroke={iconColor} strokeWidth="1.1" strokeLinejoin="round"/>
+          <path d="M4.5 5.5h3M4.5 7h3" stroke={iconColor} strokeWidth="1.1" strokeLinecap="round"/>
+        </svg>
+      );
+      return (
+        <span className="inline-flex items-center gap-1.5 pl-2 pr-2.5 h-[22px] rounded-full bg-[#f5f6f8] text-[13px] text-[#1c212b] max-w-full">
+          <span className="shrink-0">{icon}</span>
+          <span className="truncate">{label}</span>
+        </span>
+      );
+    }
 
     /* ---------- Icons (inline SVGs, 16px stroke 1.5) ---------- */
     const I = {
@@ -724,8 +756,7 @@
     }
 
     function Pill({ tone, children }) {
-      return <span className="inline-flex items-center gap-1.5 px-2 h-[22px] rounded-md text-[12px] font-medium" style={{ background: tone.bg, color: tone.fg }}>
-        {tone.dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: tone.dot }} />}
+      return <span className="inline-flex items-center px-2.5 h-[22px] rounded-full text-[12px] font-medium" style={{ background: tone.bg, color: tone.fg }}>
         {children}
       </span>;
     }
@@ -993,11 +1024,11 @@
       const cellFor = (id, r) => {
         switch(id) {
           case 'n':        return <span className="text-[12px] text-[#72757b] tabular-nums">{r.n}</span>;
-          case 'name':     return <span className="text-[13px] text-[#1c212b] font-medium block truncate">{r.name}</span>;
-          case 'contract': return <span className="text-[13px] text-[#43474f] block truncate">{r.contract}</span>;
+          case 'name':     return <EntityChip kind="doc" label={r.name} />;
+          case 'contract': return <EntityChip kind="doc" label={r.contract} />;
           case 'desc':     return <span className="text-[13px] text-[#43474f] block truncate" title={r.desc}>{r.desc}</span>;
           case 'status':   return <Pill tone={statusPill(r.status)}>{r.status}</Pill>;
-          case 'cparty':   return <span className="text-[13px] text-[#43474f] block truncate">{r.cparty}</span>;
+          case 'cparty':   return <EntityChip kind="entity" label={r.cparty} />;
           case 'type':     return <span className="text-[13px] text-[#43474f] block truncate">{r.type}</span>;
           case 'resp':     return <span className="text-[13px] text-[#43474f]">{r.resp}</span>;
           case 'cadence':  return <Pill tone={cadencePill(r.cadence)}>{r.cadence}</Pill>;
@@ -1527,7 +1558,7 @@
               {/* Filter row — expands when "Filters" is clicked; ContextSwitcher to the right */}
               <div className="px-6 mt-4 flex items-start gap-3">
                 <div
-                  className="rounded-2xl border bg-white transition-all flex-1 min-w-0"
+                  className={`${filtersOpen ? 'rounded-[24px]' : 'rounded-full'} border bg-white transition-all flex-1 min-w-0`}
                   style={{ borderColor: C.gray10, boxShadow: filtersOpen ? '0 1px 2px rgba(28,33,43,0.04)' : 'none' }}
                 >
                   <div className="flex items-center gap-2 px-4 min-h-12 py-2 flex-wrap">
