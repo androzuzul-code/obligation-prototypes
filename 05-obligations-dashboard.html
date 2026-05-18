@@ -127,13 +127,62 @@
     };
 
     /* ---------- Data ---------- */
+    /* Sidebar icons — outline style, 18×18, stroked Black 70.
+     * Pulled to visually match the Figma sidebar component. */
+    const SidebarIcon = ({ kind }) => {
+      const c = '#43474f';
+      const sw = 1.4;
+      const wrap = (children) => (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          {children}
+        </svg>
+      );
+      switch (kind) {
+        case 'starred':
+          return wrap(<path d="M10 1.8l2.5 5.1 5.6.8-4 4 .95 5.6L10 14.6 4.95 17.3 5.9 11.7l-4-4 5.6-.8L10 1.8z"
+            stroke={c} strokeWidth={sw} strokeLinejoin="round" />);
+        case 'all':
+          return wrap(<>
+            <path d="M2 5.5C2 4.67 2.67 4 3.5 4h3l1.5 1.5h7c.83 0 1.5.67 1.5 1.5v8c0 .83-.67 1.5-1.5 1.5h-11c-.83 0-1.5-.67-1.5-1.5V5.5z"
+              stroke={c} strokeWidth={sw} strokeLinejoin="round" />
+          </>);
+        case 'upcoming':
+          return wrap(<>
+            <circle cx="10" cy="10" r="7.5" stroke={c} strokeWidth={sw} />
+            <path d="M10 5.5V10l2.8 1.8" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+          </>);
+        case 'overdue':
+          return wrap(<>
+            <path d="M10 2.6L18 16.2H2L10 2.6z" stroke={c} strokeWidth={sw} strokeLinejoin="round" />
+            <path d="M10 8v3.5M10 13.5v.5" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+          </>);
+        case 'executed':
+          return wrap(<>
+            <circle cx="10" cy="10" r="7.5" stroke={c} strokeWidth={sw} />
+            <path d="M6.5 10l2.5 2.5 4.5-5" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+          </>);
+        case 'needs-verification':
+          return wrap(<>
+            <circle cx="10" cy="10" r="7.5" stroke={c} strokeWidth={sw} />
+            <path d="M10 6v4.5M10 13v.5" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+          </>);
+        case 'view':
+          return wrap(<>
+            <rect x="3" y="3.5" width="14" height="13" rx="1.5" stroke={c} strokeWidth={sw} />
+            <path d="M3 7.5h14M7 3.5v13" stroke={c} strokeWidth={sw} />
+          </>);
+        default:
+          return wrap(<circle cx="10" cy="10" r="3" stroke={c} strokeWidth={sw} />);
+      }
+    };
+
     const VIEWS = [
-      { id:'starred', label:'Starred', count:5 },
-      { id:'all', label:'All obligations', count:2103 },
-      { id:'upcoming', label:'Upcoming', count:1891 },
-      { id:'overdue', label:'Overdue', count:12 },
-      { id:'executed', label:'Executed', count:1982 },
-      { id:'needs-verification', label:'Needs verification', count:54 },
+      { id:'starred',            label:'Starred',            count:5,    icon:'starred' },
+      { id:'all',                label:'All obligations',    count:2103, icon:'all' },
+      { id:'upcoming',           label:'Upcoming',           count:1891, icon:'upcoming' },
+      { id:'overdue',            label:'Overdue',            count:12,   icon:'overdue' },
+      { id:'executed',           label:'Executed',           count:1982, icon:'executed' },
+      { id:'needs-verification', label:'Needs verification', count:54,   icon:'needs-verification' },
     ];
     const TYPES = [
       { id:'ai-usage', label:'Artificial intelligence usage', count:5 },
@@ -333,11 +382,11 @@
         return (
           <button
             onClick={()=> id.startsWith('t-') ? onType(id.slice(2)) : onView(id)}
-            className={`group w-full pr-3 py-1.5 flex items-center justify-between text-[14px] rounded-md mx-2 ${active?'bg-[#e2efeb] text-[#1c212b] font-medium':'text-[#43474f] hover:bg-[#f1f2f5]'}`}
+            className={`group w-full pr-3 py-1.5 flex items-center justify-between text-[14px] rounded-md mx-2 ${active?'bg-[#edeef2] text-[#1c212b] font-medium':'text-[#43474f] hover:bg-[#f5f6f8]'}`}
             style={{ paddingLeft: 12 + level*12 }}
           >
             <span className="flex items-center gap-2 min-w-0">
-              {icon || <span className="w-4 h-4 inline-flex items-center justify-center text-[#9e9ea5]">{I.circle()}</span>}
+              {icon || <span className="w-[18px] h-[18px] inline-flex items-center justify-center"><SidebarIcon kind="default" /></span>}
               <span className="truncate">{label}</span>
             </span>
             {typeof count==='number' && <span className="text-[12px] tabular-nums text-[#72757b]">{fmt(count)}</span>}
@@ -348,14 +397,13 @@
       return (
         <aside className="w-[268px] shrink-0 border-r overflow-y-auto scroll-hide bg-white pb-12 pr-4" style={{ borderColor: C.gray10 }}>
           <Section id="views" label="Views" action={<span className="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-[#edeef2] text-[#43474f]">{I.plus()}</span>}>
-            <ViewItem id="starred" label="Starred" count={5} icon={<span className="text-[#9e9ea5]">{I.star()}</span>} />
-            {VIEWS.filter(v=>v.id!=='starred').map(v => <ViewItem key={v.id} id={v.id} label={v.label} count={v.count} />)}
+            {VIEWS.map(v => <ViewItem key={v.id} id={v.id} label={v.label} count={v.count} icon={<SidebarIcon kind={v.icon} />} />)}
           </Section>
 
           <Section id="myviews" label="My views">
-            <ViewItem id="my-fy26" label="FY26 Sales obligations" />
-            <ViewItem id="my-emea" label="EMEA renewals" />
-            <ViewItem id="my-vendor" label="Vendor obligations FY27" />
+            <ViewItem id="my-fy26"   label="FY26 Sales obligations" icon={<SidebarIcon kind="view" />} />
+            <ViewItem id="my-emea"   label="EMEA renewals"          icon={<SidebarIcon kind="view" />} />
+            <ViewItem id="my-vendor" label="Vendor obligations FY27" icon={<SidebarIcon kind="view" />} />
           </Section>
         </aside>
       );
