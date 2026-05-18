@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>All obligations (typed view) · Ironclad</title>
+  <script src="vendor/tailwindcss.js"></script>
+  <script src="vendor/react.js"></script>
+  <script src="vendor/react-dom.js"></script>
+  <script src="vendor/babel.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    html, body, #root { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+      color: #1c212b;
+      letter-spacing: -0.005em;
+      -webkit-font-smoothing: antialiased;
+      background: #fff;
+    }
+    .font-display {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Inter", system-ui, sans-serif;
+    }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { scrollbar-width: none; }
+    /* Subtle table row hover */
+    .row-hover:hover { background: #fafbfc; }
+    /* Inner shadow for selected nav item underline */
+    .nav-active::after {
+      content: '';
+      position: absolute;
+      left: 16px; right: 16px; bottom: -1px;
+      height: 2px; background: #2e846c; border-radius: 1px;
+    }
+  </style>
+  <script type="text/babel" data-presets="react">
+    const { useState, useMemo, useCallback, useRef, useEffect } = React;
+
+    /* ---------- Tokens ---------- */
+    const C = {
+      green50:'#2e846c', green10:'#c9e4dc',
+      black95:'#0e1116', black90:'#1c212b', black70:'#43474f', black50:'#72757b',
+      white00:'#ffffff', white03:'#f5f6f8', white06:'#edeef2',
+      gray10:'#e2e2e8', gray40:'#9e9ea5',
+      blue05:'#e5f1ff', blue50:'#3b83f6',
+      red50:'#d14e38', red10:'#f8dcd8', red04:'#fff0f0',
+      yellow40:'#bf8519', yellow10:'#fcdfa5',
+      seafoam52:'#3c7d7a',
+    };
+
+    /* ---------- Icons (inline SVGs, 16px stroke 1.5) ---------- */
+    const I = {
+      logo: (
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M5 6h18v3H5z" fill="#1c212b"/>
+          <path d="M5 12h6v10H5z" fill="#1c212b"/>
+          <path d="M17 12h6v10h-6z" fill="#1c212b"/>
+        </svg>
+      ),
+      bell: (p) => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" {...p}><path d="M4 8a6 6 0 1112 0v3l1.5 2.5h-15L4 11V8z" stroke="#43474f" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 16a2 2 0 004 0" stroke="#43474f" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+      chevDown: (p) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" {...p}><path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      chevRight: (p) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" {...p}><path d="M4.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      search: (p) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" {...p}><circle cx="7" cy="7" r="4.5" stroke="#72757b" strokeWidth="1.4"/><path d="M10.5 10.5l3 3" stroke="#72757b" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+      filter: (p) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" {...p}><path d="M2 3.5h12l-4.5 5v4l-3 1.5v-5.5L2 3.5z" stroke="#43474f" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+      plus: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+      star: (p) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" {...p}><path d="M8 1.8l1.85 3.75 4.15.6-3 2.92.7 4.13L8 11.2 4.3 13.2l.7-4.13L2 6.15l4.15-.6L8 1.8z" stroke="#43474f" strokeWidth="1.2" strokeLinejoin="round"/></svg>,
+      dots3: (p) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" {...p}><circle cx="3.5" cy="8" r="1.2" fill="#72757b"/><circle cx="8" cy="8" r="1.2" fill="#72757b"/><circle cx="12.5" cy="8" r="1.2" fill="#72757b"/></svg>,
+      sortDown: (p) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" {...p}><path d="M6 2v8M3 7l3 3 3-3" stroke="#9e9ea5" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      list: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><path d="M2 3.5h10M2 7h10M2 10.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+      grid: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><rect x="2" y="2" width="4" height="4" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="8" y="2" width="4" height="4" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="2" y="8" width="4" height="4" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="8" y="8" width="4" height="4" stroke="currentColor" strokeWidth="1.4" rx="0.5"/></svg>,
+      tree: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><circle cx="3" cy="3" r="1.4" stroke="currentColor" strokeWidth="1.2"/><circle cx="11" cy="7" r="1.4" stroke="currentColor" strokeWidth="1.2"/><circle cx="3" cy="11" r="1.4" stroke="currentColor" strokeWidth="1.2"/><path d="M4 3.5l5 3M4 10.5l5-3" stroke="currentColor" strokeWidth="1.2"/></svg>,
+      dashboard: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><rect x="2" y="2" width="4.5" height="6" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="2" y="9.5" width="4.5" height="2.5" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="7.5" y="2" width="4.5" height="2.5" stroke="currentColor" strokeWidth="1.4" rx="0.5"/><rect x="7.5" y="6" width="4.5" height="6" stroke="currentColor" strokeWidth="1.4" rx="0.5"/></svg>,
+      chip: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7l1.5 1.5L9 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      circle: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.4"/></svg>,
+      warn: (p) => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" {...p}><path d="M7 1.5l6 11H1L7 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M7 6v3M7 10.7v.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+      sparkle: (p) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" {...p}><path d="M5 2v3M3.5 3.5h3M11 7v6M9.5 10h3M8.5 1.5l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2 1.2-3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    };
+
+    /* ---------- Data ---------- */
+    const VIEWS = [
+      { id:'starred', label:'Starred', count:5 },
+      { id:'all', label:'All obligations', count:2103 },
+      { id:'upcoming', label:'Upcoming', count:1891 },
+      { id:'overdue', label:'Overdue', count:12 },
+      { id:'executed', label:'Executed', count:1982 },
+      { id:'needs-verification', label:'Needs verification', count:54 },
+    ];
+    const TYPES = [
+      { id:'ai-usage', label:'Artificial intelligence usage', count:5 },
+      { id:'breach', label:'Breach notice', count:32 },
+      { id:'customer', label:'Customer commitment obligations', count:412 },
+      { id:'rebate', label:'Rebate and volume incentive', count:18 },
+      { id:'supplier', label:'Supplier performance obligations', count:76 },
+    ];
+    const STATUS_BAR_DEFS = [
+      { id:'total',    label:'Total active',        tone:'neutral', match: () => true },
+      { id:'internal', label:'Internal',            tone:'neutral', match: r => r.resp === 'Internal' },
+      { id:'cparty',   label:'Counterparty',        tone:'neutral', match: r => r.resp === 'Counterparty' },
+      { id:'missed',   label:'Missed',              tone:'danger',  match: r => r.status === 'Missed' || r.status === 'Overdue' },
+      { id:'risk',     label:'At risk',             tone:'warn',    match: r => r.status === 'At risk' },
+      { id:'verify',   label:'Needs verification',  tone:'warn',    match: r => r.status === 'In-progress' && r.progress && r.progress.done === 0 },
+    ];
+
+    const ROWS = [
+      // SUPPLIER PERFORMANCE — freight credit, on-time delivery %, vendor scorecard
+      { n:1,  name:'Moonbeam Contract',       contract:'Starlight Agreement',     desc:'Vendor late-shipment penalty: $0.018 per unit × volume short of forecast, credited against next invoice.',                                                  status:'In-progress', cparty:'Innovative Dynamics',   type:'Supplier performance', resp:'Counterparty', cadence:'Recurring',   due:'Dec 31, 2025', created:3, progress:{done:9,total:12},
+        categories:['supplier'], freightCredit:'$8,400',  onTimePct:94.2, scorecard:'A−' },
+      { n:9,  name:'Meridian Terms',          contract:'Velocity Contract',       desc:'Quarterly SLA credits at 10% monthly tier = ~$10K per breach quarter when uptime drops below 99.95%.',                                                       status:'At risk',     cparty:'Peak Performance Group',type:'Supplier performance', resp:'Counterparty', cadence:'Recurring',   due:'Mar 14, 2026', progress:{done:2,total:4},
+        categories:['supplier'], freightCredit:'$10,200', onTimePct:88.4, scorecard:'B' },
+      { n:14, name:'Astral Compact',          contract:'Revolution Treaty',       desc:'Provide monthly usage report and bill of materials by the 5th business day; underrun triggers credit.',                                                      status:'Overdue',     cparty:'Helix Bio',             type:'Supplier performance', resp:'Counterparty', cadence:'Recurring',   due:'May 1, 2026',  created:1, progress:{done:5,total:8},
+        categories:['supplier'], freightCredit:'$3,750',  onTimePct:91.0, scorecard:'A−' },
+      { n:19, name:'Helios Logistics Pact',   contract:'Drayage MSA — Saigon',    desc:'Freight credit at $0.42 per lb. for shipments arriving >48hr past committed delivery window; reconciled monthly.',                                            status:'In-progress', cparty:'Saigon Precision Mfg.', type:'Supplier performance', resp:'Counterparty', cadence:'Recurring',   due:'Jan 5, 2026',  progress:{done:11,total:12},
+        categories:['supplier'], freightCredit:'$14,600', onTimePct:96.8, scorecard:'A' },
+      { n:20, name:'Boreal Components SLA',   contract:'Tier-1 Supply Agreement', desc:'PPV credit when unit cost exceeds index; vendor must rebate the delta within 30 days of invoice close.',                                                       status:'In-progress', cparty:'Penang Semi Group',     type:'Supplier performance', resp:'Counterparty', cadence:'Recurring',   due:'Feb 10, 2026', progress:{done:3,total:12},
+        categories:['supplier'], freightCredit:'$6,150',  onTimePct:82.1, scorecard:'B−' },
+
+      // BREACH NOTICE — notice window, regulator basis, downstream customers
+      { n:2,  name:'Nebula Partnership',      contract:'Quantum Accord',          desc:'Counterparty must notify within 72 hours of any security incident affecting customer data (DPA §6.4).',                                                       status:'In-progress', cparty:'EcoSolutions Corp',     type:'Breach notice',  resp:'Counterparty', cadence:'Event based', due:'Dec 31, 2025', created:3, progress:{done:2,total:3},
+        categories:['breach'], noticeWindow:'72 hr', regulator:'GDPR Art. 33', cascade:5 },
+      { n:4,  name:'Cosmic Collaboration',    contract:'Echo Framework',          desc:'Vendor must report quarterly downtime, breach notice, and remediation plan via the customer portal.',                                                          status:'In-progress', cparty:'Quantum Innovations',   type:'Breach notice',  resp:'Counterparty', cadence:'Recurring',   due:'Jan 31, 2026', progress:{done:3,total:8},
+        categories:['breach'], noticeWindow:'24 hr', regulator:'HIPAA §164.410', cascade:3 },
+      { n:8,  name:'Astral Communications',   contract:'Polaris Pact',            desc:'Vendor must publish updated subprocessor list at least 30 days before adding new entries; customer retains right to object.',                                  status:'In-progress', cparty:'Helix BioSystems',      type:'Breach notice',  resp:'Counterparty', cadence:'Event based', due:'Mar 1, 2026',  progress:{done:1,total:2},
+        categories:['breach'], noticeWindow:'30 day', regulator:'DPA §11 (subprocessor)', cascade:2 },
+      { n:21, name:'Aegis Notification SLA',  contract:'Northwind Cloud DPA',     desc:'Subprocessor must notify within 24 hours of any unauthorized access; Acme cascades to enterprise customers per DPA §11.2.',                                     status:'At risk',     cparty:'Northwind Cloud',       type:'Breach notice',  resp:'Counterparty', cadence:'Event based', due:'Jun 4, 2026',  progress:{done:0,total:1},
+        categories:['breach'], noticeWindow:'24 hr', regulator:'CCPA §1798.82', cascade:5 },
+
+      // CUSTOMER COMMITMENT OBLIGATIONS — customer, SLA target, source clause
+      { n:3,  name:'Galactic Accord',         contract:'Nebula Pact',             desc:'Maintain SOC 2 Type II attestation current for the duration of the engagement; provide annual report by April 30.',                                            status:'In-progress', cparty:'NexGen Technologies',   type:'Customer commitment', resp:'Internal',     cadence:'Perpetual',   due:'Dec 30, 2025', progress:{done:4,total:6},
+        categories:['customer'], customerName:'NexGen Technologies', slaTarget:'SOC 2 Type II current', channel:'MSA §8.1' },
+      { n:6,  name:'Celestial Pact',          contract:'Zenith Contract',         desc:'Confirm contract effective date and provide signed counterpart within 5 business days.',                                                                       status:'In-progress', cparty:'Synergy Enterprises',   type:'Customer commitment', resp:'Internal',     cadence:'One-time',    due:'Mar 2, 2026',  progress:{done:0,total:1},
+        categories:['customer'], customerName:'Synergy Enterprises', slaTarget:'5 business days', channel:'Order Form §3' },
+      { n:15, name:'Eclipse Agreement',       contract:'Paradox Arrangement',     desc:'Customer audit right exercisable within 30 days of written notice; provide system access logs for the prior 12 months.',                                       status:'In-progress', cparty:'Horizon Labs',          type:'Customer commitment', resp:'Internal',     cadence:'Event based', due:'May 30, 2026', progress:{done:0,total:1},
+        categories:['customer'], customerName:'Horizon Labs', slaTarget:'30 day audit response', channel:'DPA §9.1' },
+      { n:22, name:'Vertex Service Floor',    contract:'Vertex MSA',              desc:'Maintain 99.95% monthly platform availability for production tenants; quarterly service-credit reconciliation.',                                                status:'In-progress', cparty:'Vertex Industries',     type:'Customer commitment', resp:'Internal',     cadence:'Recurring',   due:'Mar 31, 2026', progress:{done:2,total:4},
+        categories:['customer'], customerName:'Vertex Industries', slaTarget:'99.95% uptime', channel:'SLA §2.3' },
+
+      // REBATE AND VOLUME INCENTIVE — rebate value, threshold, achievement
+      { n:7,  name:'Solar System Agreement',  contract:'Aurora Deal',             desc:'2% net-10 discount on a $540K contract = $10.8K captured every invoice cycle.',                                                                                 status:'In-progress', cparty:'Global Vision Systems', type:'Rebate',          resp:'Internal',     cadence:'Recurring',   due:'Mar 1, 2026',  progress:{done:6,total:12},
+        categories:['rebate'], rebateValue:'$10,800/cycle', threshold:'Net-10 payment', achievement:'On track' },
+      { n:11, name:'Orbital Accord',          contract:'Elysian Accord',          desc:'Volume rebate of 2% triggers if annual spend exceeds $3M; reconciled at Q4 close.',                                                                              status:'Fulfilled',   cparty:'Vertex Industries',     type:'Rebate',          resp:'Counterparty', cadence:'Recurring',   due:'Apr 4, 2026',  progress:{done:4,total:4},
+        categories:['rebate'], rebateValue:'$62,000', threshold:'>$3M annual', achievement:'$3.1M · achieved' },
+      { n:17, name:'Planetary Concord',       contract:'Resolution Treaty',       desc:'Most-favored-nation pricing: vendor must match any lower price offered to comparable customers within the term.',                                              status:'In-progress', cparty:'Summit Enterprises',    type:'Rebate',          resp:'Counterparty', cadence:'Perpetual',   due:'Jul 9, 2026',  progress:{done:7,total:10},
+        categories:['rebate'], rebateValue:'MFN delta', threshold:'Any lower comparable', achievement:'2 matches YTD' },
+      { n:23, name:'Tiered Discount Trigger', contract:'Cascade Master SOW',      desc:'5% rebate unlocks once cumulative spend crosses $1.5M; tier resets each fiscal year.',                                                                          status:'In-progress', cparty:'Cascade Robotics',      type:'Rebate',          resp:'Counterparty', cadence:'Recurring',   due:'Dec 31, 2026', progress:{done:0,total:1},
+        categories:['rebate'], rebateValue:'$75,000', threshold:'>$1.5M FY spend', achievement:'$910K · 61%' },
+
+      // ARTIFICIAL INTELLIGENCE USAGE — model/provider, monthly usage, governance flag
+      { n:24, name:'Copilot Usage Policy',    contract:'M365 SOW – Amendment #3', desc:'Model output containing customer PII must pass through DLP review before external transmission.',                                                                status:'In-progress', cparty:'Microsoft',             type:'AI usage',        resp:'Internal',     cadence:'Perpetual',   due:'Jun 30, 2026', progress:{done:0,total:1},
+        categories:['ai-usage'], aiModel:'Copilot · M365', aiUsage:'18,400 prompts/mo', aiGov:'PII review required' },
+      { n:25, name:'Foundation Model TOS',    contract:'OpenAI Enterprise MSA',   desc:'No training on customer inputs; usage governed by approved-data-class list; quarterly attestation due.',                                                          status:'In-progress', cparty:'OpenAI',                type:'AI usage',        resp:'Counterparty', cadence:'Recurring',   due:'Apr 1, 2026',  progress:{done:1,total:4},
+        categories:['ai-usage'], aiModel:'GPT-4o · OpenAI', aiUsage:'2.4M tokens/mo', aiGov:'No-train confirmed' },
+      { n:26, name:'Anthropic Data Boundary', contract:'Claude API Agreement',    desc:'PII redaction required prior to prompt submission; outputs may not be used to retrain third-party models.',                                                       status:'At risk',     cparty:'Anthropic',             type:'AI usage',        resp:'Counterparty', cadence:'Perpetual',   due:'Jul 15, 2026', progress:{done:0,total:1},
+        categories:['ai-usage'], aiModel:'Claude · Anthropic', aiUsage:'5.1M tokens/mo', aiGov:'PII redaction gap' },
+
+      // remaining unchanged (don't belong to specific sidebar category buckets)
+      { n:5,  name:'Lunar Alliance',          contract:'Sapphire Engagement',     desc:'Onboarding milestone vendor credit ($27K, 5% on $540K) claimable per the SOW.',                                                                                  status:'Missed',      cparty:'Apex Ventures',         type:'Milestone',   resp:'Internal',     cadence:'Event based', due:'Feb 5, 2025',  created:3, progress:{done:0,total:1}, categories:[] },
+      { n:10, name:'Stellaris Engagement',    contract:'Pinnacle Contract',       desc:'Tariff and duty pass-through capped at 4% over CPI; activation triggers 30-day notice to customer.',                                                              status:'In-progress', cparty:'Acme Studios',          type:'Compliance', resp:'Internal',     cadence:'Event based', due:'Apr 4, 2026',  progress:{done:0,total:1}, categories:[] },
+      { n:12, name:'Supernova Agreement',     contract:'Frontier Engagement',     desc:'Insurance certificate of $5M aggregate coverage to be renewed and delivered to procurement annually.',                                                            status:'In-progress', cparty:'AeroVolt Solutions',    type:'Compliance', resp:'Counterparty', cadence:'Recurring',   due:'Apr 8, 2026',  progress:{done:1,total:3}, categories:[] },
+      { n:13, name:'Interstellar Accord',     contract:'Nova Deal',               desc:'Auto-renew unless either party provides 90 days notice prior to renewal date; current term expires Apr 30, 2026.',                                                status:'In-progress', cparty:'Polaris Group',         type:'Renewal',     resp:'Internal',     cadence:'Event based', due:'Apr 25, 2026', progress:{done:0,total:1}, categories:[] },
+      { n:16, name:'Quasar Partnership',      contract:'Synergy Bond',            desc:'Counterparty must indemnify against IP infringement claims arising from delivered work product.',                                                                  status:'In-progress', cparty:'Atlas Holdings',        type:'Indemnity',   resp:'Counterparty', cadence:'Perpetual',   due:'Jun 18, 2026', progress:{done:3,total:10}, categories:[] },
+      { n:18, name:'Comet Coalition',         contract:'Elemental Framework',     desc:'Right of first refusal on follow-on orders for the same hardware SKU during the renewal window.',                                                                  status:'In-progress', cparty:'Beacon Industries',     type:'Right',       resp:'Internal',     cadence:'Event based', due:'Aug 1, 2026',  progress:{done:0,total:1}, categories:[] },
+    ].sort((a,b)=>a.n-b.n);
+
+    // Type-specific columns that appear when a sidebar "Obligations by type" category is selected.
+    const TYPE_COLUMNS = {
+      'supplier': [
+        { id:'freightCredit', label:'Freight credit',   w:130 },
+        { id:'onTimePct',     label:'On-time delivery', w:140 },
+        { id:'scorecard',     label:'Vendor scorecard', w:140 },
+      ],
+      'ai-usage': [
+        { id:'aiModel', label:'Model · Provider',  w:180 },
+        { id:'aiUsage', label:'Usage / month',     w:150 },
+        { id:'aiGov',   label:'Governance flag',   w:180 },
+      ],
+      'breach': [
+        { id:'noticeWindow', label:'Notice window',         w:130 },
+        { id:'regulator',    label:'Regulator basis',       w:170 },
+        { id:'cascade',      label:'Downstream customers',  w:170 },
+      ],
+      'customer': [
+        { id:'customerName', label:'Customer',     w:160 },
+        { id:'slaTarget',    label:'SLA target',   w:150 },
+        { id:'channel',      label:'Source clause',w:140 },
+      ],
+      'rebate': [
+        { id:'rebateValue', label:'Rebate value',  w:140 },
+        { id:'threshold',   label:'Threshold',     w:160 },
+        { id:'achievement', label:'Achievement',   w:160 },
+      ],
+    };
+
+    const ALL_TYPES = [...new Set(ROWS.map(r => r.type))].sort();
+
+    const COL_DEFS = [
+      { id:'n',        label:'#',              w:60   },
+      { id:'name',     label:'Name',           w:210  },
+      { id:'contract', label:'Contract',       w:200  },
+      { id:'desc',     label:'Description',    w:420  },
+      { id:'status',   label:'Status',         w:130  },
+      { id:'cparty',   label:'Counterparty',   w:190  },
+      { id:'type',     label:'Type',           w:140  },
+      { id:'resp',     label:'Responsibility', w:140  },
+      { id:'cadence',  label:'Cadence',        w:130  },
+      { id:'due',      label:'Next/Due',       w:130  },
+      { id:'created',  label:'# Created',      w:100  },
+      { id:'progress', label:'Progress',       w:160  },
+      { id:'assignee', label:'Assignee',       w:100  },
+    ];
+
+    /* ---------- Helpers ---------- */
+    const fmt = (n) => n.toLocaleString('en-US');
+    const statusPill = (s) => {
+      const map = {
+        'Fulfilled':   { bg:C.green10, fg:C.green50,  dot:C.green50  },
+        'In-progress': { bg:C.blue05,  fg:'#1d4ed8',  dot:C.blue50   },
+        'Missed':      { bg:C.red10,   fg:C.red50,    dot:C.red50    },
+        'At risk':     { bg:C.yellow10,fg:C.yellow40, dot:C.yellow40 },
+        'Overdue':     { bg:C.red10,   fg:C.red50,    dot:C.red50    },
+      };
+      return map[s] || { bg:C.white06, fg:C.black70, dot:C.gray40 };
+    };
+    const cadencePill = (s) => {
+      const map = {
+        'Recurring':   { bg:C.white06, fg:C.black70 },
+        'Event based': { bg:C.white06, fg:C.black70 },
+        'Perpetual':   { bg:C.white06, fg:C.black70 },
+        'One-time':    { bg:C.white06, fg:C.black70 },
+      };
+      return map[s] || { bg:C.white06, fg:C.black70 };
+    };
+    const initials = (n) => n.split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+    const avatarColor = (s) => {
+      const palette = ['#9bc1f0','#f9b4a6','#c4d49c','#f7d488','#b6a3f0','#a6e0d3','#f0a3c0','#c0b6a3'];
+      let h = 0; for (const c of s) h = (h*31 + c.charCodeAt(0)) >>> 0;
+      return palette[h % palette.length];
+    };
+
+    /* ---------- Components ---------- */
+    function TopNav({ section, onSection }) {
+      const items = ['Dashboard','Imports','Workflow Designer','Insights','Entities','Obligations'];
+      return (
+        <header className="h-[50px] bg-white border-b flex items-center pl-2 pr-4 shrink-0" style={{ borderColor: C.gray10 }}>
+          <div className="w-[53px] flex items-center justify-center">{I.logo}</div>
+          <nav className="flex items-center h-full">
+            {items.map(it => (
+              <button key={it}
+                onClick={()=>onSection(it)}
+                className={`relative h-full px-4 text-[14px] font-medium flex items-center ${section===it?'nav-active text-[#1c212b]':'text-[#43474f] hover:text-[#1c212b]'}`}>
+                {it}
+              </button>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-4">
+            <button className="text-[#43474f] hover:text-[#1c212b]">{I.bell()}</button>
+            <button className="flex items-center gap-1 text-[14px] text-[#43474f] hover:text-[#1c212b]">Company {I.chevDown({ style:{ color:'#43474f' }})}</button>
+            <div className="w-px h-5 bg-[#e2e2e8]" />
+            <div className="w-7 h-7 rounded-full bg-[#2e846c] text-white text-[12px] font-semibold flex items-center justify-center">U</div>
+          </div>
+        </header>
+      );
+    }
+
+    function Sidebar({ activeView, onView, expandedSections, onToggleSection, activeType, onType }) {
+      const Section = ({ id, label, children, action }) => (
+        <div className="mb-1">
+          <button
+            onClick={()=>onToggleSection(id)}
+            className="w-full px-4 py-2 flex items-center justify-between text-[12px] font-semibold uppercase tracking-wider text-[#72757b] hover:text-[#43474f]"
+          >
+            <span className="flex items-center gap-1">
+              <span style={{ display:'inline-flex', transform: expandedSections[id]?'rotate(90deg)':'rotate(0)', transition:'transform .15s' }}>{I.chevRight()}</span>
+              {label}
+            </span>
+            {action && <span className="text-[#43474f]" onClick={(e)=>e.stopPropagation()}>{action}</span>}
+          </button>
+          {expandedSections[id] && <div>{children}</div>}
+        </div>
+      );
+
+      const ViewItem = ({ id, label, count, icon, level=0 }) => {
+        const active = (id===activeView) || (id===activeType);
+        return (
+          <button
+            onClick={()=> id.startsWith('t-') ? onType(id.slice(2)) : onView(id)}
+            className={`group w-full pr-3 py-1.5 flex items-center justify-between text-[14px] rounded-md mx-2 ${active?'bg-[#e2efeb] text-[#1c212b] font-medium':'text-[#43474f] hover:bg-[#f1f2f5]'}`}
+            style={{ paddingLeft: 12 + level*12 }}
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              {icon || <span className="w-4 h-4 inline-flex items-center justify-center text-[#9e9ea5]">{I.circle()}</span>}
+              <span className="truncate">{label}</span>
+            </span>
+            {typeof count==='number' && <span className="text-[12px] tabular-nums text-[#72757b]">{fmt(count)}</span>}
+          </button>
+        );
+      };
+
+      return (
+        <aside className="w-[268px] shrink-0 border-r overflow-y-auto scroll-hide bg-white pb-12 pr-4" style={{ borderColor: C.gray10 }}>
+          <Section id="views" label="Views" action={<span className="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-[#edeef2] text-[#43474f]">{I.plus()}</span>}>
+            <ViewItem id="starred" label="Starred" count={5} icon={<span className="text-[#9e9ea5]">{I.star()}</span>} />
+            {VIEWS.filter(v=>v.id!=='starred').map(v => <ViewItem key={v.id} id={v.id} label={v.label} count={v.count} />)}
+          </Section>
+
+          <Section id="myviews" label="My views">
+            <ViewItem id="my-fy26" label="FY26 Sales obligations" />
+            <ViewItem id="my-emea" label="EMEA renewals" />
+            <ViewItem id="my-vendor" label="Vendor obligations FY27" />
+          </Section>
+        </aside>
+      );
+    }
+
+    function ViewToggle({ value, onChange }) {
+      const opts = [
+        { id:'list',      label:'List',      icon:I.list },
+        { id:'tree',      label:'Tree',      icon:I.tree },
+        { id:'data',      label:'Data',      icon:I.grid },
+        { id:'dashboard', label:'Dashboard', icon:I.dashboard },
+      ];
+      return (
+        <div className="inline-flex items-center bg-[#f5f6f8] rounded-lg p-0.5 border" style={{ borderColor: C.gray10 }}>
+          {opts.map(o => (
+            <button key={o.id}
+              onClick={()=>onChange(o.id)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium ${value===o.id?'bg-white shadow-sm text-[#1c212b]':'text-[#43474f] hover:text-[#1c212b]'}`}
+            >
+              <span className={value===o.id?'text-[#1c212b]':'text-[#43474f]'}>{o.icon()}</span>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    function StatCard({ s, active, onClick }) {
+      const dangerTones = {
+        danger: { value:C.red50,    delta:'#a23e2e' },
+        warn:   { value:C.yellow40, delta:'#a37116' },
+        neutral:{ value:C.black90,  delta:C.black50 },
+      };
+      const tone = dangerTones[s.tone] || dangerTones.neutral;
+      return (
+        <button onClick={onClick} className={`text-left flex-1 min-w-0 rounded-xl border p-4 transition ${active?'border-[#2e846c] ring-1 ring-[#2e846c]/30 bg-white':'border-[#e2e2e8] bg-white hover:border-[#9e9ea5]'}`}>
+          <div className="text-[13px] font-medium text-[#72757b] truncate">{s.label}</div>
+          <div className="mt-1 text-[28px] font-display font-bold leading-tight tabular-nums" style={{ color: tone.value }}>{fmt(s.value)}</div>
+          {s.delta && <div className="text-[12px] mt-0.5" style={{ color: tone.delta }}>{s.delta}</div>}
+        </button>
+      );
+    }
+
+    function Pill({ tone, children }) {
+      return <span className="inline-flex items-center gap-1.5 px-2 h-[22px] rounded-md text-[12px] font-medium" style={{ background: tone.bg, color: tone.fg }}>
+        {tone.dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: tone.dot }} />}
+        {children}
+      </span>;
+    }
+
+    function Avatar({ name }) {
+      const ini = initials(name);
+      return <span className="w-6 h-6 rounded-full text-[11px] font-semibold inline-flex items-center justify-center" style={{ background: avatarColor(name), color:'#1c212b' }}>{ini}</span>;
+    }
+
+    function ProgressBar({ p }) {
+      if (!p) return <span className="text-[#9e9ea5]">—</span>;
+      const pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
+      const done = pct === 100;
+      const barColor = done ? C.green50 : pct === 0 ? C.gray40 : '#3b83f6';
+      return (
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-[#e2e2e8] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+          <span className="text-[12px] tabular-nums text-[#43474f] shrink-0">{p.done}/{p.total}</span>
+        </div>
+      );
+    }
+
+    const TYPE_LABELS = {
+      'supplier':  'Supplier performance',
+      'breach':    'Breach notice',
+      'customer':  'Customer commitment',
+      'rebate':    'Rebate & volume incentive',
+      'ai-usage':  'AI usage',
+    };
+    // Map the row.type value the popover lists → the TYPE_COLUMNS key
+    const TYPE_VALUE_TO_KEY = {
+      'Supplier performance': 'supplier',
+      'Breach notice':        'breach',
+      'Customer commitment':  'customer',
+      'Rebate':               'rebate',
+      'AI usage':             'ai-usage',
+    };
+    // When a type is chosen, these base columns are kept; everything else
+    // (except the type-specific ones) is hidden so the table feels focused.
+    const BASE_KEEP_ON_NARROW = new Set(['n','name','contract','status','cparty','cadence','due','assignee']);
+
+    function TriCheckbox({ state, onChange, ariaLabel }) {
+      // state: 'on' | 'off' | 'partial'
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current) ref.current.indeterminate = state === 'partial';
+      }, [state]);
+      return (
+        <input
+          ref={ref}
+          type="checkbox"
+          aria-label={ariaLabel}
+          className="accent-[#2e846c] w-4 h-4"
+          checked={state === 'on'}
+          onChange={onChange}
+          onClick={(e)=>e.stopPropagation()}
+        />
+      );
+    }
+
+    function ColumnPicker({ open, anchorRef, panelRef, manualCols, toggleCol, toggleSection, onClose }) {
+      if (!open) return null;
+      const sectionState = (cols) => {
+        const count = cols.filter(c => manualCols.has(c.id)).length;
+        if (count === 0) return 'off';
+        if (count === cols.length) return 'on';
+        return 'partial';
+      };
+      const Item = ({ col }) => {
+        const checked = manualCols.has(col.id);
+        return (
+          <label className="flex items-center gap-2.5 pl-7 pr-3 py-1.5 hover:bg-[#f5f6f8] cursor-pointer rounded-md">
+            <input
+              type="checkbox"
+              className="accent-[#2e846c] w-4 h-4"
+              checked={checked}
+              onChange={()=>toggleCol(col.id)}
+            />
+            <span className="flex-1 text-[13px] text-[#1c212b]">{col.label}</span>
+          </label>
+        );
+      };
+      const SectionHeader = ({ label, cols }) => {
+        const state = sectionState(cols);
+        const ids = cols.map(c => c.id);
+        return (
+          <label className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-[#f5f6f8] cursor-pointer rounded-md">
+            <TriCheckbox state={state} onChange={()=>toggleSection(ids)} ariaLabel={`Toggle all ${label} columns`} />
+            <span className="text-[11px] uppercase tracking-wider text-[#72757b] font-semibold">{label}</span>
+          </label>
+        );
+      };
+      return (
+        <div
+          ref={panelRef}
+          className="absolute z-30 bg-white border rounded-xl overflow-hidden"
+          style={{
+            top: 'calc(100% + 4px)',
+            right: 0,
+            width: 280,
+            maxHeight: 460,
+            borderColor: C.gray10,
+            boxShadow: '0 8px 24px rgba(28,33,43,0.12)',
+          }}
+        >
+          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: C.gray10 }}>
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#72757b]">Columns</span>
+            <button onClick={onClose} className="text-[12px] text-[#43474f] hover:text-[#1c212b]">Done</button>
+          </div>
+          <div className="overflow-y-auto py-1" style={{ maxHeight: 410 }}>
+            <div className="px-1 py-1">
+              <SectionHeader label="Default" cols={COL_DEFS} />
+              {COL_DEFS.map(c => <Item key={c.id} col={c} />)}
+            </div>
+            {Object.entries(TYPE_COLUMNS).map(([tid, cols]) => (
+              <div key={tid} className="px-1 py-1 border-t" style={{ borderColor: C.gray10 }}>
+                <SectionHeader label={TYPE_LABELS[tid] || tid} cols={cols} />
+                {cols.map(c => <Item key={c.id} col={c} />)}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection }) {
+
+      const cellFor = (id, r) => {
+        switch(id) {
+          case 'n':        return <span className="text-[12px] text-[#72757b] tabular-nums">{r.n}</span>;
+          case 'name':     return <span className="text-[13px] text-[#1c212b] font-medium block truncate">{r.name}</span>;
+          case 'contract': return <span className="text-[13px] text-[#43474f] block truncate">{r.contract}</span>;
+          case 'desc':     return <span className="text-[13px] text-[#43474f] block truncate" title={r.desc}>{r.desc}</span>;
+          case 'status':   return <Pill tone={statusPill(r.status)}>{r.status}</Pill>;
+          case 'cparty':   return <span className="text-[13px] text-[#43474f] block truncate">{r.cparty}</span>;
+          case 'type':     return <span className="text-[13px] text-[#43474f] block truncate">{r.type}</span>;
+          case 'resp':     return <span className="text-[13px] text-[#43474f]">{r.resp}</span>;
+          case 'cadence':  return <Pill tone={cadencePill(r.cadence)}>{r.cadence}</Pill>;
+          case 'due':      return <span className="text-[13px] text-[#43474f] tabular-nums whitespace-nowrap">{r.due}</span>;
+          case 'created':  return <span className="text-[13px] text-[#43474f] tabular-nums">{r.created || ''}</span>;
+          case 'progress': return r.cadence === 'Recurring' ? <ProgressBar p={r.progress} /> : <span className="text-[#9e9ea5]">—</span>;
+          case 'assignee': return <Avatar name="Alex Avery" />;
+          // Type-specific fields
+          case 'freightCredit': return r.freightCredit ? <span className="text-[13px] font-medium text-[#1c5e4d] tabular-nums">{r.freightCredit}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'onTimePct':     return typeof r.onTimePct === 'number' ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-[#e2e2e8] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${r.onTimePct}%`, background: r.onTimePct >= 95 ? C.green50 : r.onTimePct >= 85 ? '#bf8519' : C.red50 }} />
+              </div>
+              <span className="text-[12px] tabular-nums text-[#43474f] shrink-0">{r.onTimePct}%</span>
+            </div>
+          ) : <span className="text-[#9e9ea5]">—</span>;
+          case 'scorecard': {
+            if (!r.scorecard) return <span className="text-[#9e9ea5]">—</span>;
+            const grade = r.scorecard;
+            const tone = grade.startsWith('A') ? { bg:C.green10, fg:C.green50 } : grade.startsWith('B') ? { bg:'#fcdfa5', fg:'#bf8519' } : { bg:C.red10, fg:C.red50 };
+            return <span className="inline-flex items-center px-2 h-[22px] rounded-md text-[12px] font-semibold tabular-nums" style={{ background: tone.bg, color: tone.fg }}>{grade}</span>;
+          }
+          case 'aiModel': return r.aiModel ? <span className="text-[13px] text-[#1c212b] block truncate">{r.aiModel}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'aiUsage': return r.aiUsage ? <span className="text-[13px] text-[#43474f] tabular-nums">{r.aiUsage}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'aiGov': {
+            if (!r.aiGov) return <span className="text-[#9e9ea5]">—</span>;
+            const ok = /confirmed|approved/i.test(r.aiGov);
+            const tone = ok ? { bg:C.green10, fg:C.green50 } : { bg:'#fcdfa5', fg:'#bf8519' };
+            return <span className="inline-flex items-center px-2 h-[22px] rounded-md text-[12px] font-medium" style={{ background: tone.bg, color: tone.fg }}>{r.aiGov}</span>;
+          }
+          case 'noticeWindow': return r.noticeWindow ? <span className="text-[13px] font-medium text-[#1c212b] tabular-nums">{r.noticeWindow}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'regulator':    return r.regulator ? <span className="text-[13px] text-[#43474f] block truncate">{r.regulator}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'cascade':      return typeof r.cascade === 'number' ? <span className="text-[13px] text-[#43474f] tabular-nums">{r.cascade} affected</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'customerName': return r.customerName ? <span className="text-[13px] text-[#1c212b] block truncate">{r.customerName}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'slaTarget':    return r.slaTarget ? <span className="text-[13px] text-[#43474f]">{r.slaTarget}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'channel':      return r.channel ? <span className="text-[13px] text-[#43474f]">{r.channel}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'rebateValue':  return r.rebateValue ? <span className="text-[13px] font-medium text-[#1c5e4d] tabular-nums">{r.rebateValue}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'threshold':    return r.threshold ? <span className="text-[13px] text-[#43474f] block truncate">{r.threshold}</span> : <span className="text-[#9e9ea5]">—</span>;
+          case 'achievement':  return r.achievement ? <span className="text-[13px] text-[#43474f] block truncate">{r.achievement}</span> : <span className="text-[#9e9ea5]">—</span>;
+          default: return null;
+        }
+      };
+
+      const Header = ({ col }) => (
+        <th
+          className="relative px-3 py-2.5 text-[12px] font-semibold text-[#43474f] select-none border-b text-left align-middle"
+          style={{ width: colWidths[col.id], minWidth: colWidths[col.id], maxWidth: colWidths[col.id], borderColor: C.gray10, background:'#fbfbfc' }}
+        >
+          <button onClick={()=>onSort(col.id)} className="inline-flex items-center gap-1.5 hover:text-[#1c212b] max-w-full">
+            <span className="truncate">{col.label}</span>
+            {sort.col===col.id ? <span style={{ transform: sort.dir==='asc'?'rotate(180deg)':'none', display:'inline-flex' }}>{I.sortDown()}</span> : <span className="opacity-50">{I.sortDown()}</span>}
+          </button>
+          {/* Resize handle */}
+          <div
+            onMouseDown={(e)=>onResizeStart(col.id, e)}
+            title="Drag to resize"
+            className="absolute top-0 right-[-3px] h-full w-[6px] cursor-col-resize select-none group"
+            style={{ zIndex: 2 }}
+          >
+            <div className="absolute top-1 bottom-1 left-1/2 -translate-x-1/2 w-px bg-transparent group-hover:bg-[#2e846c]" />
+          </div>
+        </th>
+      );
+
+      return (
+        <div className="border rounded-xl bg-white overflow-hidden" style={{ borderColor: C.gray10 }}>
+          <div className="overflow-x-auto">
+            <table className="border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+              <thead>
+                <tr>
+                  <th className="w-9 px-3 py-2.5 border-b" style={{ borderColor: C.gray10, background:'#fbfbfc' }}>
+                    <input type="checkbox" className="accent-[#2e846c]" onChange={()=>{}} checked={false} />
+                  </th>
+                  {orderedCols.map(col => <Header key={col.id} col={col} />)}
+                  {/* "+" header that opens the column picker */}
+                  <th
+                    className="px-2 py-2.5 border-b text-left relative"
+                    style={{ width: 44, minWidth: 44, borderColor: C.gray10, background:'#fbfbfc' }}
+                  >
+                    <button
+                      ref={columnPickerBtnRef}
+                      onClick={()=>setColumnPickerOpen(o=>!o)}
+                      aria-label="Add column"
+                      title="Add or remove columns"
+                      className={`w-7 h-7 inline-flex items-center justify-center rounded-md border ${columnPickerOpen ? 'bg-[#1c212b] text-white border-[#1c212b]' : 'bg-white text-[#43474f] hover:bg-[#f5f6f8]'}`}
+                      style={!columnPickerOpen ? { borderColor: C.gray10 } : {}}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                    </button>
+                    <ColumnPicker
+                      open={columnPickerOpen}
+                      panelRef={columnPickerRef}
+                      anchorRef={columnPickerBtnRef}
+                      manualCols={manualCols}
+                      toggleCol={toggleCol}
+                      toggleSection={toggleSection}
+                      onClose={()=>setColumnPickerOpen(false)}
+                    />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.n} className="row-hover cursor-pointer" onClick={()=>onRowClick(r)}>
+                    <td className="px-3 py-3 border-b align-middle" style={{ borderColor: C.gray10 }}>
+                      <input type="checkbox" className="accent-[#2e846c]" checked={selected.has(r.n)} onClick={e=>e.stopPropagation()} onChange={()=>onToggleRow(r.n)} />
+                    </td>
+                    {orderedCols.map(col => (
+                      <td
+                        key={col.id}
+                        className="px-3 py-3 border-b align-middle"
+                        style={{ width: colWidths[col.id], minWidth: colWidths[col.id], maxWidth: colWidths[col.id], borderColor: C.gray10, overflow:'hidden' }}
+                      >
+                        {cellFor(col.id, r)}
+                      </td>
+                    ))}
+                    <td className="px-2 py-3 border-b align-middle" style={{ width: 44, minWidth: 44, borderColor: C.gray10 }} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    function DetailDrawer({ row, onClose }) {
+      if (!row) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/20" onClick={onClose} />
+          <div className="w-[520px] bg-white shadow-xl flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: C.gray10 }}>
+              <div>
+                <div className="text-[12px] text-[#72757b]">Obligation #{row.n}</div>
+                <div className="text-[18px] font-display font-semibold mt-0.5">{row.name}</div>
+              </div>
+              <button onClick={onClose} className="text-[#43474f] hover:text-[#1c212b]" aria-label="close">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-5">
+              <Field label="Status"><Pill tone={statusPill(row.status)}>{row.status}</Pill></Field>
+              <Field label="Description"><p className="text-[14px] text-[#1c212b]">{row.desc}</p></Field>
+              <div className="grid grid-cols-2 gap-5">
+                <Field label="Contract">{row.contract}</Field>
+                <Field label="Counterparty">{row.cparty}</Field>
+                <Field label="Type">{row.type}</Field>
+                <Field label="Responsibility">{row.resp}</Field>
+                <Field label="Cadence"><Pill tone={cadencePill(row.cadence)}>{row.cadence}</Pill></Field>
+                <Field label="Next / Due">{row.due}</Field>
+              </div>
+              <Field label="Assignee">
+                <div className="inline-flex items-center gap-2"><Avatar name="Alex Avery" /><span className="text-[14px] text-[#1c212b]">Alex Avery</span></div>
+              </Field>
+            </div>
+            <div className="mt-auto px-6 py-4 border-t flex items-center gap-2" style={{ borderColor: C.gray10 }}>
+              <button className="px-3 h-9 rounded-md bg-[#2e846c] text-white text-[13px] font-medium hover:opacity-90">Mark fulfilled</button>
+              <button className="px-3 h-9 rounded-md border text-[13px] font-medium hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>Reassign</button>
+              <button className="ml-auto text-[#43474f] hover:text-[#1c212b]">{I.dots3()}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    function Field({ label, children }) {
+      return (
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-[#72757b] font-semibold mb-1.5">{label}</div>
+          <div className="text-[14px] text-[#1c212b]">{children}</div>
+        </div>
+      );
+    }
+
+    /* ---------- App ---------- */
+    const FILTER_CHIPS = ['All filters', 'Counterparty', 'Stage', 'Type', 'People', 'Date'];
+
+    function App() {
+      const [section, setSection] = useState('Obligations');
+      const [activeView, setActiveView] = useState('all');
+      const [activeType, setActiveType] = useState(null);
+      const [expanded, setExpanded] = useState({ views:true, myviews:false });
+      const [view, setView] = useState('list');
+      const [statusFilter, setStatusFilter] = useState(null);
+      const [search, setSearch] = useState('');
+      const [sort, setSort] = useState({ col:'n', dir:'asc' });
+      const [selected, setSelected] = useState(new Set());
+      const [openRow, setOpenRow] = useState(null);
+      const [filtersOpen, setFiltersOpen] = useState(false);
+      const [activeChip, setActiveChip] = useState(null);
+      const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+      const [selectedTypes, setSelectedTypes] = useState(new Set());
+      const typeChipRef = useRef(null);
+      const typePopoverRef = useRef(null);
+
+      // Column widths (resizable) — covers base + every type-specific column
+      const [colWidths, setColWidths] = useState(() => {
+        const all = [...COL_DEFS, ...Object.values(TYPE_COLUMNS).flat()];
+        return Object.fromEntries(all.map(c => [c.id, c.w]));
+      });
+
+      // Visible columns — single source of truth. Defaults to EVERY column
+      // (base + every type-specific). Selecting types via the Type filter
+      // chip popover narrows the view to base essentials + that type's
+      // specific columns; clearing types restores the full set.
+      const [manualCols, setManualCols] = useState(() => new Set([
+        ...COL_DEFS.map(c => c.id),
+        ...Object.values(TYPE_COLUMNS).flat().map(c => c.id),
+      ]));
+      const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+      const columnPickerBtnRef = useRef(null);
+      const columnPickerRef = useRef(null);
+
+      useEffect(() => {
+        setManualCols(prev => {
+          // No types chosen → show everything
+          if (selectedTypes.size === 0) {
+            return new Set([
+              ...COL_DEFS.map(c => c.id),
+              ...Object.values(TYPE_COLUMNS).flat().map(c => c.id),
+            ]);
+          }
+          // Types chosen → keep base essentials + union of those types' columns
+          const next = new Set();
+          for (const c of COL_DEFS) {
+            if (BASE_KEEP_ON_NARROW.has(c.id)) next.add(c.id);
+          }
+          for (const t of selectedTypes) {
+            const key = TYPE_VALUE_TO_KEY[t];
+            if (key && TYPE_COLUMNS[key]) {
+              for (const c of TYPE_COLUMNS[key]) next.add(c.id);
+            }
+          }
+          return next;
+        });
+      }, [selectedTypes]);
+
+      // Outside-click for column picker
+      useEffect(() => {
+        if (!columnPickerOpen) return;
+        const onDoc = (e) => {
+          if (columnPickerRef.current && columnPickerRef.current.contains(e.target)) return;
+          if (columnPickerBtnRef.current && columnPickerBtnRef.current.contains(e.target)) return;
+          setColumnPickerOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+      }, [columnPickerOpen]);
+
+      const toggleCol = useCallback((id) => {
+        setManualCols(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      }, []);
+
+      // Bulk add/remove an entire group of column ids
+      const toggleSection = useCallback((ids) => {
+        setManualCols(s => {
+          const n = new Set(s);
+          const allOn = ids.every(id => n.has(id));
+          for (const id of ids) {
+            if (allOn) n.delete(id);
+            else n.add(id);
+          }
+          return n;
+        });
+      }, []);
+
+      // Map id → col def, used for ordering and rendering
+      const allColsMap = useMemo(() => {
+        const m = new Map();
+        for (const c of COL_DEFS) m.set(c.id, c);
+        for (const cols of Object.values(TYPE_COLUMNS)) for (const c of cols) m.set(c.id, c);
+        return m;
+      }, []);
+
+      // Render order: base order first, then type cols grouped by category order
+      const orderedCols = useMemo(() => {
+        const out = [];
+        for (const c of COL_DEFS) if (manualCols.has(c.id)) out.push(c);
+        for (const cols of Object.values(TYPE_COLUMNS)) {
+          for (const c of cols) if (manualCols.has(c.id)) out.push(c);
+        }
+        return out;
+      }, [manualCols]);
+      const resizingRef = useRef(null);
+      const onResizeStart = useCallback((colId, e) => {
+        e.preventDefault(); e.stopPropagation();
+        resizingRef.current = { colId, startX: e.clientX, startW: colWidths[colId] };
+        const onMove = (ev) => {
+          const r = resizingRef.current; if (!r) return;
+          const delta = ev.clientX - r.startX;
+          const next = Math.max(60, r.startW + delta);
+          setColWidths(w => ({ ...w, [r.colId]: next }));
+        };
+        const onUp = () => {
+          resizingRef.current = null;
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        };
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      }, [colWidths]);
+
+      // Outside-click for Type popover
+      useEffect(() => {
+        if (!typePopoverOpen) return;
+        const onDoc = (e) => {
+          if (typePopoverRef.current && typePopoverRef.current.contains(e.target)) return;
+          if (typeChipRef.current && typeChipRef.current.contains(e.target)) return;
+          setTypePopoverOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+      }, [typePopoverOpen]);
+
+      const toggleSidebarSection = (id) => setExpanded(s => ({ ...s, [id]: !s[id] }));
+      const onView = (id) => { setActiveView(id); setActiveType(null); };
+      const onType = (id) => { setActiveType(id); setActiveView(null); };
+
+      const filtered = useMemo(() => {
+        let rs = ROWS;
+        if (statusFilter === 'missed') rs = rs.filter(r => r.status === 'Missed' || r.status === 'Overdue');
+        if (statusFilter === 'risk')   rs = rs.filter(r => r.status === 'At risk');
+        if (statusFilter === 'internal') rs = rs.filter(r => r.resp === 'Internal');
+        if (statusFilter === 'cparty')   rs = rs.filter(r => r.resp === 'Counterparty');
+        if (activeView === 'overdue') rs = rs.filter(r => r.status === 'Overdue' || r.status === 'Missed');
+        if (activeView === 'upcoming') rs = rs.filter(r => r.status !== 'Fulfilled');
+        if (activeView === 'executed') rs = rs.filter(r => r.status === 'Fulfilled');
+        if (activeView === 'needs-verification') rs = rs.filter(r => r.status === 'At risk');
+        if (activeType) rs = rs.filter(r => (r.categories || []).includes(activeType));
+        if (selectedTypes.size > 0) rs = rs.filter(r => selectedTypes.has(r.type));
+        if (search.trim()) {
+          const q = search.trim().toLowerCase();
+          rs = rs.filter(r => [r.name,r.contract,r.desc,r.cparty,r.type].join(' ').toLowerCase().includes(q));
+        }
+        const dirMul = sort.dir === 'asc' ? 1 : -1;
+        return [...rs].sort((a,b) => {
+          const va = a[sort.col] ?? ''; const vb = b[sort.col] ?? '';
+          if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dirMul;
+          return String(va).localeCompare(String(vb)) * dirMul;
+        });
+      }, [statusFilter, activeView, activeType, selectedTypes, search, sort]);
+
+      const onSort = (col) => setSort(s => ({ col, dir: s.col===col ? (s.dir==='asc'?'desc':'asc') : 'asc' }));
+      const onToggleRow = (n) => setSelected(s => { const next = new Set(s); next.has(n) ? next.delete(n) : next.add(n); return next; });
+
+      // Aggregate tiles reflect whatever filters are active. The "self" tile
+      // is computed from rows *excluding* its own status-filter so the active
+      // card keeps showing the count it represents (otherwise clicking
+      // "Missed" would collapse every other tile to 0).
+      const statusBar = useMemo(() => {
+        const baseFilter = (rs) => {
+          if (activeView === 'overdue') rs = rs.filter(r => r.status === 'Overdue' || r.status === 'Missed');
+          if (activeView === 'upcoming') rs = rs.filter(r => r.status !== 'Fulfilled');
+          if (activeView === 'executed') rs = rs.filter(r => r.status === 'Fulfilled');
+          if (activeView === 'needs-verification') rs = rs.filter(r => r.status === 'At risk');
+          if (activeType) rs = rs.filter(r => (r.categories || []).includes(activeType));
+          if (selectedTypes.size > 0) rs = rs.filter(r => selectedTypes.has(r.type));
+          if (search.trim()) {
+            const q = search.trim().toLowerCase();
+            rs = rs.filter(r => [r.name,r.contract,r.desc,r.cparty,r.type].join(' ').toLowerCase().includes(q));
+          }
+          return rs;
+        };
+        const base = baseFilter(ROWS);
+        return STATUS_BAR_DEFS.map(d => ({
+          id: d.id,
+          label: d.label,
+          tone: d.tone,
+          value: base.filter(d.match).length,
+          delta: '',
+        }));
+      }, [activeView, activeType, selectedTypes, search]);
+
+      return (
+        <div className="h-full flex flex-col bg-white">
+          <TopNav section={section} onSection={setSection} />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar
+              activeView={activeView}
+              onView={onView}
+              expandedSections={expanded}
+              onToggleSection={toggleSidebarSection}
+              activeType={activeType}
+              onType={onType}
+            />
+            <main className="flex-1 flex flex-col overflow-hidden">
+              {/* Title row */}
+              <div className="px-6 pt-5 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="font-display font-bold text-[28px] leading-tight text-[#0e1116]">All obligations</h1>
+                    <button className="text-[#9e9ea5] hover:text-[#43474f]">{I.dots3()}</button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ViewToggle value={view} onChange={setView} />
+                  <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#2e846c] text-white text-[13px] font-medium hover:opacity-90">
+                    {I.plus({ style:{ color:'white' }})}
+                    New
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter row — expands when "Filters" is clicked */}
+              <div className="px-6 mt-4">
+                <div
+                  className="rounded-2xl border bg-white transition-all"
+                  style={{ borderColor: C.gray10, boxShadow: filtersOpen ? '0 1px 2px rgba(28,33,43,0.04)' : 'none' }}
+                >
+                  <div className="flex items-center gap-2 px-4 min-h-12 py-2 flex-wrap">
+                    <span className="text-[#72757b] shrink-0">{I.search()}</span>
+                    {/* Dismissable selected-type chips render inline in the search bar */}
+                    {[...selectedTypes].map(t => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-[#e2efeb] text-[#1c5e4d] text-[12px] font-medium"
+                      >
+                        Type: {t}
+                        <button
+                          onClick={()=>setSelectedTypes(s => { const n = new Set(s); n.delete(t); return n; })}
+                          className="w-5 h-5 inline-flex items-center justify-center rounded-full hover:bg-[#c9e4dc]"
+                          aria-label={`Remove ${t}`}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="#1c5e4d" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={search}
+                      onChange={e=>setSearch(e.target.value)}
+                      placeholder={selectedTypes.size === 0 ? "Ask or search anything" : ""}
+                      className="flex-1 min-w-[120px] text-[14px] outline-none placeholder:text-[#9e9ea5] bg-transparent"
+                    />
+                    <button
+                      onClick={()=>setFiltersOpen(o=>!o)}
+                      aria-pressed={filtersOpen}
+                      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[13px] font-medium shrink-0 ${filtersOpen ? 'bg-[#f5f6f8] text-[#1c212b]' : 'text-[#43474f] hover:bg-[#f5f6f8]'}`}
+                      style={{ borderColor: C.gray10 }}
+                    >
+                      {I.filter()} Filters
+                    </button>
+                  </div>
+                  {filtersOpen && (
+                    <div className="px-4 pb-3 pt-1 flex items-center gap-2 flex-wrap relative">
+                      {FILTER_CHIPS.map(chip => {
+                        const isType = chip === 'Type';
+                        const active = isType ? (typePopoverOpen || selectedTypes.size > 0) : activeChip === chip;
+                        const ref = isType ? typeChipRef : null;
+                        return (
+                          <button
+                            key={chip}
+                            ref={ref}
+                            onClick={()=>{
+                              if (isType) { setTypePopoverOpen(o=>!o); }
+                              else { setActiveChip(c => c===chip ? null : chip); }
+                            }}
+                            className={`inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border text-[13px] font-medium transition ${active ? 'bg-[#1c212b] text-white border-[#1c212b]' : 'bg-white text-[#43474f] hover:bg-[#f5f6f8]'}`}
+                            style={!active ? { borderColor: C.gray10 } : {}}
+                          >
+                            {chip}
+                            {isType && selectedTypes.size > 0 && (
+                              <span className={`text-[11px] px-1.5 rounded ${active ? 'bg-white/20 text-white' : 'bg-[#e2efeb] text-[#2e846c]'} font-semibold`}>
+                                {selectedTypes.size}
+                              </span>
+                            )}
+                            {isType && (
+                              <span className={active ? 'text-white' : 'text-[#43474f]'}>{I.chevDown()}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+
+                      {/* Type popover */}
+                      {typePopoverOpen && (
+                        <div
+                          ref={typePopoverRef}
+                          className="absolute z-30 bg-white border rounded-xl shadow-lg overflow-hidden"
+                          style={{
+                            top: 'calc(100% + 6px)',
+                            left: (typeChipRef.current ? typeChipRef.current.offsetLeft : 240),
+                            width: 280,
+                            borderColor: C.gray10,
+                            boxShadow: '0 8px 24px rgba(28,33,43,0.12)',
+                          }}
+                        >
+                          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: C.gray10 }}>
+                            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#72757b]">Filter by type</span>
+                            {selectedTypes.size > 0 && (
+                              <button
+                                onClick={()=>setSelectedTypes(new Set())}
+                                className="text-[12px] text-[#2e846c] hover:underline font-medium"
+                              >Clear</button>
+                            )}
+                          </div>
+                          <div className="max-h-[280px] overflow-y-auto py-1">
+                            {ALL_TYPES.map(t => {
+                              const checked = selectedTypes.has(t);
+                              const count = ROWS.filter(r => r.type === t).length;
+                              return (
+                                <label
+                                  key={t}
+                                  className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#f5f6f8] cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="accent-[#2e846c] w-4 h-4"
+                                    checked={checked}
+                                    onChange={()=>setSelectedTypes(s => {
+                                      const n = new Set(s);
+                                      n.has(t) ? n.delete(t) : n.add(t);
+                                      return n;
+                                    })}
+                                  />
+                                  <span className="flex-1 text-[13px] text-[#1c212b]">{t}</span>
+                                  <span className="text-[12px] tabular-nums text-[#72757b]">{count}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <div className="px-3 py-2 border-t bg-[#fafbfc] flex items-center justify-between" style={{ borderColor: C.gray10 }}>
+                            <span className="text-[12px] text-[#72757b]">{selectedTypes.size} selected</span>
+                            <button
+                              onClick={()=>setTypePopoverOpen(false)}
+                              className="px-2.5 h-7 rounded-md bg-[#2e846c] text-white text-[12px] font-medium hover:opacity-90"
+                            >Done</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Status cards — counts recompute from the active filter set */}
+              <div className="px-6 mt-4 flex gap-3 overflow-x-auto scroll-hide">
+                {statusBar.map(s => (
+                  <StatCard
+                    key={s.id}
+                    s={s}
+                    active={statusFilter === s.id}
+                    onClick={() => setStatusFilter(p => p===s.id ? null : s.id)}
+                  />
+                ))}
+              </div>
+
+              {/* Table */}
+              <div className="px-6 mt-4 pb-8 flex-1 overflow-auto">
+                {(statusFilter || (activeView && activeView !== 'all') || activeType || activeChip || search.trim()) && (
+                  <div className="mb-2 text-[12px] text-[#72757b]">
+                    Showing <span className="font-medium text-[#1c212b]">{filtered.length}</span> of {ROWS.length} obligations
+                    {statusFilter && <> · filtered by <button onClick={()=>setStatusFilter(null)} className="text-[#2e846c] hover:underline">{STATUS_BAR_DEFS.find(s=>s.id===statusFilter)?.label}</button></>}
+                    {activeView && activeView !== 'all' && <> · view <span className="font-medium text-[#1c212b]">{VIEWS.find(v=>v.id===activeView)?.label}</span></>}
+                    {activeType && <> · type <span className="font-medium text-[#1c212b]">{TYPES.find(t=>t.id===activeType)?.label}</span></>}
+                    {activeChip && <> · chip <button onClick={()=>setActiveChip(null)} className="text-[#2e846c] hover:underline">{activeChip}</button></>}
+                  </div>
+                )}
+                <ObligationsTable
+                  rows={filtered}
+                  sort={sort}
+                  onSort={onSort}
+                  selected={selected}
+                  onToggleRow={onToggleRow}
+                  onRowClick={setOpenRow}
+                  colWidths={colWidths}
+                  onResizeStart={onResizeStart}
+                  orderedCols={orderedCols}
+                  columnPickerOpen={columnPickerOpen}
+                  setColumnPickerOpen={setColumnPickerOpen}
+                  columnPickerBtnRef={columnPickerBtnRef}
+                  columnPickerRef={columnPickerRef}
+                  manualCols={manualCols}
+                  toggleCol={toggleCol}
+                  toggleSection={toggleSection}
+                />
+              </div>
+            </main>
+          </div>
+          <DetailDrawer row={openRow} onClose={()=>setOpenRow(null)} />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>

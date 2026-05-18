@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prototypes</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; margin: 0; padding: 48px; background: #fff; color: #1c212b; }
+    h1 { font-size: 24px; font-weight: 700; margin: 0 0 24px; letter-spacing: -0.01em; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { margin-bottom: 12px; }
+    a {
+      display: block; padding: 16px 20px; border: 1px solid #e2e2e8; border-radius: 12px;
+      text-decoration: none; color: #1c212b; transition: border-color .15s, background .15s;
+    }
+    a:hover { border-color: #2e846c; background: #f5fbf9; }
+    .label { font-size: 16px; font-weight: 600; }
+    .meta { font-size: 13px; color: #72757b; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>R4 Sonic Boom — Buy-side prototypes</h1>
+  <ul>
+    <li>
+      <a href="01-obligations-dashboard.html">
+        <div class="label">01 · All obligations dashboard — base columns by default</div>
+        <div class="meta">Sidebar drives type narrowing; "+" picker adds type-specific columns.</div>
+      </a>
+    </li>
+    <li>
+      <a href="02-obligations-dashboard.html">
+        <div class="label">02 · All obligations dashboard — every column by default</div>
+        <div class="meta">No "Obligations by type" sidebar; picking a Type via the filter chip narrows columns to the selected type's set.</div>
+      </a>
+    </li>
+    <li>
+      <a href="03-obligations-dashboard.html">
+        <div class="label">03 · All obligations dashboard — base columns by default, type ADDS columns</div>
+        <div class="meta">No "Obligations by type" sidebar; picking a Type via the filter chip adds that type's columns on top of the base set.</div>
+      </a>
+    </li>
+    <li>
+      <a href="04-obligations-dashboard.html">
+        <div class="label">04 · All obligations dashboard — sticky column picker</div>
+        <div class="meta">"+" button pinned to the top-right of the table, floating over the column headers. Always in view regardless of horizontal scroll.</div>
+      </a>
+    </li>
+    <li>
+      <a href="05-obligations-dashboard.html">
+        <div class="label">05 · All obligations dashboard — additive + grid context switcher</div>
+        <div class="meta">Sticky "+" picker. Generic base columns by default; picking a Type adds that type's columns. Toggle next to the search bar switches between List view (current style) and Grid view (cell-based, every column shown).</div>
+      </a>
+    </li>
+  </ul>
+</body>
+</html>
