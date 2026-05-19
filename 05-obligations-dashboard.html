@@ -38,6 +38,29 @@
       position: relative;
       z-index: 1;
     }
+    /* Cell ear: a small overflow-action tab on the right edge of a hovered cell */
+    tr.data-row > td.data-cell { position: relative; }
+    .cell-ear {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 28px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e2e2e8;
+      border-radius: 4px;
+      background: #ffffff;
+      box-shadow: -1px 1px 4px rgba(28,33,43,0.08);
+      z-index: 4;
+      cursor: pointer;
+    }
+    .cell-ear:hover { background: #f5f6f8; }
+    tr.data-row:hover > td.data-cell:hover .cell-ear,
+    td.data-cell.cell-menu-open .cell-ear { display: inline-flex; }
+    td.data-cell.cell-menu-open { background: #edeef2 !important; }
     /* Inner shadow for selected nav item underline */
     .nav-active::after {
       content: '';
@@ -451,6 +474,63 @@
       );
       return (
         <input type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder={def.placeholder} style={style} />
+      );
+    }
+
+    function CellActionMenu({ anchorRect, onClose, onAction }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (!anchorRect) return;
+        const onDoc = (e) => {
+          if (ref.current && ref.current.contains(e.target)) return;
+          onClose();
+        };
+        const onEsc = (e) => { if (e.key === 'Escape') onClose(); };
+        const t = setTimeout(() => {
+          document.addEventListener('mousedown', onDoc);
+          document.addEventListener('keydown', onEsc);
+        }, 0);
+        return () => {
+          clearTimeout(t);
+          document.removeEventListener('mousedown', onDoc);
+          document.removeEventListener('keydown', onEsc);
+        };
+      }, [anchorRect, onClose]);
+      if (!anchorRect) return null;
+
+      const W = 232;
+      let top = anchorRect.bottom + 4;
+      let left = anchorRect.right - W;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      if (left + W > vw - 12) left = Math.max(12, vw - W - 12);
+      if (left < 12) left = 12;
+      const estH = 188;
+      if (top + estH > vh - 12) top = Math.max(12, anchorRect.top - estH - 4);
+
+      const items = [
+        { id:'copy',   label:'Copy',                 icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="4.5" y="2.5" width="8" height="9" rx="1.2" stroke="#1c212b" strokeWidth="1.3"/><rect x="2.5" y="4.5" width="8" height="9" rx="1.2" stroke="#1c212b" strokeWidth="1.3"/></svg> },
+        { id:'edit',   label:'Edit',                 icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 13.5l3-.8L13 5.2l-2.2-2.2L3.3 10.5l-.8 3z" stroke="#1c212b" strokeWidth="1.3" strokeLinejoin="round"/></svg> },
+        { id:'accept', label:'Accept flagged values',icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#1c212b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+        { id:'delete', label:'Delete',               icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4V3a1 1 0 011-1h1a1 1 0 011 1v1M5 4.5l.7 8.5a1.2 1.2 0 001.2 1.1h2.2a1.2 1.2 0 001.2-1.1L11 4.5" stroke="#1c212b" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+      ];
+
+      return (
+        <div
+          ref={ref}
+          className="fixed z-50 bg-white rounded-[8px] p-1 flex flex-col"
+          style={{ top, left, width: W, boxShadow: '0 4px 16px rgba(28,33,43,0.18)' }}
+        >
+          {items.map(it => (
+            <button
+              key={it.id}
+              onClick={()=>{ onAction && onAction(it.id); onClose(); }}
+              className="flex items-center gap-2.5 px-3 h-9 rounded-[6px] hover:bg-[#f5f6f8] text-left"
+            >
+              <span className="shrink-0">{it.icon}</span>
+              <span className="text-[14px] text-[#1c212b]">{it.label}</span>
+            </button>
+          ))}
+        </div>
       );
     }
 
@@ -1081,7 +1161,7 @@
       );
     }
 
-    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell }) {
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell }) {
 
       const cellFor = (id, r) => {
         switch(id) {
@@ -1224,15 +1304,16 @@
                     </td>
                     {orderedCols.map((col, idx) => {
                       const isActive = dense && activeCell && activeCell.rowN === r.n && activeCell.colId === col.id;
+                      const earOpen = dense && earMenuCell && earMenuCell.rowN === r.n && earMenuCell.colId === col.id;
                       return (
                         <td
                           key={col.id}
                           data-row={r.n}
                           data-col={col.id}
-                          className={`px-3 ${cellPadY} border-b align-middle ${dense ? 'data-cell' : ''} ${isActive ? 'data-cell-active' : ''}`}
+                          className={`px-3 ${cellPadY} border-b align-middle ${dense ? 'data-cell' : ''} ${isActive ? 'data-cell-active' : ''} ${earOpen ? 'cell-menu-open' : ''}`}
                           style={{
                             width: colWidths[col.id], minWidth: colWidths[col.id], maxWidth: colWidths[col.id],
-                            borderColor: C.gray10, overflow:'hidden',
+                            borderColor: C.gray10, overflow: 'hidden',
                             borderRight: (dense && idx !== orderedCols.length - 1) ? cellBorder : 'none',
                             height: dense ? 36 : undefined,
                             lineHeight: dense ? '20px' : undefined,
@@ -1243,6 +1324,20 @@
                           onClick={dense ? (e)=>{ e.stopPropagation(); onCellClick(r, col, e.currentTarget); } : undefined}
                         >
                           {cellFor(col.id, r)}
+                          {dense && (
+                            <button
+                              type="button"
+                              className="cell-ear"
+                              aria-label="Cell actions"
+                              onClick={(e)=>{ e.stopPropagation(); onEarClick(r, col, e.currentTarget); }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <circle cx="6" cy="2.4" r="1" fill="#43474f"/>
+                                <circle cx="6" cy="6"   r="1" fill="#43474f"/>
+                                <circle cx="6" cy="9.6" r="1" fill="#43474f"/>
+                              </svg>
+                            </button>
+                          )}
                         </td>
                       );
                     })}
@@ -1432,6 +1527,23 @@
         });
       }, []);
       const closeSource = useCallback(() => setSourceCell(null), []);
+
+      // Cell overflow action ear (Data view only)
+      const [earMenu, setEarMenu] = useState(null); // { row, col, rect }
+      const onEarClick = useCallback((row, col, el) => {
+        const rect = el.getBoundingClientRect();
+        setEarMenu(prev => {
+          if (prev && prev.row.n === row.n && prev.col.id === col.id) return null;
+          return { row, col, rect };
+        });
+        // Close source popover if open so they don't stack visually
+        setSourceCell(null);
+      }, []);
+      const closeEarMenu = useCallback(() => setEarMenu(null), []);
+      const onEarAction = useCallback((actionId) => {
+        // Side effects could go here later; for now this is a demo prototype.
+        console.log('cell action', actionId, earMenu?.row?.n, earMenu?.col?.id);
+      }, [earMenu]);
 
       // Document preview slideout
       const [docPreview, setDocPreview] = useState(null); // { row, col, data }
@@ -1796,6 +1908,8 @@
                     tableView={tableView}
                     onCellClick={onCellClick}
                     activeCell={sourceCell ? { rowN: sourceCell.row.n, colId: sourceCell.col.id } : null}
+                    onEarClick={onEarClick}
+                    earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
                   />
                 </div>
                 <SourcePopover
@@ -1804,6 +1918,11 @@
                   col={sourceCell?.col}
                   onClose={closeSource}
                   onViewInDoc={onViewInDoc}
+                />
+                <CellActionMenu
+                  anchorRect={earMenu?.rect}
+                  onClose={closeEarMenu}
+                  onAction={onEarAction}
                 />
                 {docPreview && <DocumentPreview payload={docPreview} onClose={closeDoc} onWidthChange={onPreviewWidthChange} />}
               </div>
