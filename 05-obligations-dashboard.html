@@ -534,18 +534,18 @@
       );
     }
 
-    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc }) {
+    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc, initialMode }) {
       const ref = useRef(null);
-      const [mode, setMode] = useState('view');
+      const [mode, setMode] = useState(initialMode || 'view');
       const [draft, setDraft] = useState('');
       const [preventAI, setPreventAI] = useState(false);
 
-      // Reset edit state when popover swaps cells
+      // Reset edit state when popover swaps cells (or re-opens at a new mode)
       useEffect(() => {
-        setMode('view');
+        setMode(initialMode || 'view');
         setDraft(String(rawCellValue(row || {}, col?.id) ?? ''));
         setPreventAI(false);
-      }, [row?.n, col?.id]);
+      }, [row?.n, col?.id, initialMode]);
 
       useEffect(() => {
         if (!anchorRect) return;
@@ -1541,8 +1541,17 @@
       }, []);
       const closeEarMenu = useCallback(() => setEarMenu(null), []);
       const onEarAction = useCallback((actionId) => {
-        // Side effects could go here later; for now this is a demo prototype.
-        console.log('cell action', actionId, earMenu?.row?.n, earMenu?.col?.id);
+        if (!earMenu) return;
+        if (actionId === 'edit') {
+          // Find the cell DOM to re-anchor the source card directly
+          const sc = tableScrollerRef.current;
+          const cell = sc ? sc.querySelector(`[data-row="${earMenu.row.n}"][data-col="${earMenu.col.id}"]`) : null;
+          const rect = cell ? cell.getBoundingClientRect() : earMenu.rect;
+          setSourceCell({ row: earMenu.row, col: earMenu.col, rect, mode: 'edit' });
+        } else {
+          // Other actions (Copy / Accept / Delete) — log for now in this demo
+          console.log('cell action', actionId, earMenu.row?.n, earMenu.col?.id);
+        }
       }, [earMenu]);
 
       // Document preview slideout
@@ -1918,6 +1927,7 @@
                   col={sourceCell?.col}
                   onClose={closeSource}
                   onViewInDoc={onViewInDoc}
+                  initialMode={sourceCell?.mode || 'view'}
                 />
                 <CellActionMenu
                   anchorRect={earMenu?.rect}
