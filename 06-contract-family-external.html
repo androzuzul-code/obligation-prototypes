@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>External-source placeholder node · Contract family</title>
+  <script src="vendor/tailwindcss.js"></script>
+  <script src="vendor/react.js"></script>
+  <script src="vendor/react-dom.js"></script>
+  <script src="vendor/babel.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif; color: #1c212b; -webkit-font-smoothing: antialiased; background: #fff; letter-spacing: -0.005em; }
+    .font-display { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Inter", system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+    const C = { gray10:'#e2e2e8', black90:'#1c212b', black70:'#43474f', black50:'#72757b', green50:'#2e846c' };
+
+    const ICONS = {
+      globe: (cls='w-4 h-4') => (
+        <svg className={cls} viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.2" stroke="#43474f" strokeWidth="1.3"/>
+          <path d="M1.8 8h12.4M8 1.8C6 4 6 12 8 14.2M8 1.8C10 4 10 12 8 14.2" stroke="#43474f" strokeWidth="1.3"/>
+        </svg>
+      ),
+      external: (cls='w-3.5 h-3.5') => (
+        <svg className={cls} viewBox="0 0 14 14" fill="none">
+          <path d="M5.5 2.5H2.5v9h9V8.5M7.5 2.5h4v4M11.5 2.5L6.5 7.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      file: (cls='w-4 h-4') => (
+        <svg className={cls} viewBox="0 0 16 16" fill="none">
+          <path d="M3.5 1.5h6L13 5v9.5H3.5v-13z" stroke="#43474f" strokeWidth="1.3" strokeLinejoin="round"/>
+          <path d="M9 1.5V5h4" stroke="#43474f" strokeWidth="1.3" strokeLinejoin="round"/>
+        </svg>
+      ),
+      chev: (cls='w-3.5 h-3.5') => (
+        <svg className={cls} viewBox="0 0 12 12" fill="none">
+          <path d="M4 3l3 3-3 3" stroke="#72757b" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      dots: (cls='w-4 h-4') => (
+        <svg className={cls} viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="3.5" r="1.2" fill="#72757b"/>
+          <circle cx="8" cy="8" r="1.2" fill="#72757b"/>
+          <circle cx="8" cy="12.5" r="1.2" fill="#72757b"/>
+        </svg>
+      ),
+    };
+
+    /* ---------- Building blocks ---------- */
+
+    function NormalCard({ name, id, type, dates, desc, status, indent=0, amendsTag='Amends' }) {
+      return (
+        <div className="flex items-stretch">
+          {amendsTag && (
+            <div className="self-center" style={{ marginLeft: indent }}>
+              <span className="inline-flex items-center px-2 h-[22px] rounded-md bg-[#eef4fa] text-[12px] font-medium text-[#1c5e9a] mr-2">{amendsTag}</span>
+            </div>
+          )}
+          <div className="flex-1 flex items-center bg-white border rounded-md px-4 py-3" style={{ borderColor: C.gray10 }}>
+            <span className="mr-2 text-[#9e9ea5]">{ICONS.chev()}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-semibold text-[#1c212b] truncate">{name}</div>
+              <div className="text-[12px] text-[#72757b] mt-0.5 truncate">
+                {id} <span className="mx-1.5">·</span> {type} <span className="mx-1.5">·</span> {dates} <span className="mx-1.5">·</span> {desc}
+              </div>
+            </div>
+            <span className="ml-3 inline-flex items-center px-2 h-[22px] rounded-md text-[12px] font-medium bg-[#c9e4dc] text-[#1c212b]">{status}</span>
+            <button className="ml-2 text-[#43474f] hover:text-[#1c212b]">{ICONS.dots()}</button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------- External-source placeholder card variants ---------- */
+
+    // Variant A — Recommended: distinct shape + content, sits as a tree root
+    function ExternalCardA({ name, url, lastVerified, governsCount }) {
+      const host = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      return (
+        <div
+          className="flex items-center px-4 py-3 rounded-md"
+          style={{
+            background: '#f1f6fb',
+            border: '1px dashed #9bbbdc',
+          }}
+        >
+          {/* No chevron — no detail page to expand into */}
+          <span className="mr-2.5 inline-flex items-center justify-center w-6 h-6 rounded-md bg-white" style={{ border: '1px solid #c9dbef' }}>
+            {ICONS.globe('w-3.5 h-3.5')}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-semibold text-[#1c212b] truncate">{name}</span>
+              <span className="inline-flex items-center px-1.5 h-[18px] rounded-[3px] text-[10px] font-semibold tracking-wider uppercase bg-[#1c5e9a] text-white">External</span>
+            </div>
+            <div className="text-[12px] text-[#43474f] mt-1 flex items-center gap-1.5 truncate">
+              <span className="font-medium text-[#1c5e9a]">{host}</span>
+              <span className="text-[#9e9ea5]">·</span>
+              <span>Online terms · governs {governsCount} contracts</span>
+              <span className="text-[#9e9ea5]">·</span>
+              <span>Verified {lastVerified}</span>
+            </div>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-3 inline-flex items-center gap-1.5 px-2.5 h-[28px] rounded-md text-[12px] font-medium text-[#1c5e9a] hover:bg-[#e2eef9]"
+          >
+            <span>Open URL</span>
+            <span className="text-[#1c5e9a]">{ICONS.external('w-3 h-3')}</span>
+          </a>
+          <button className="ml-1 text-[#43474f] hover:text-[#1c212b]" title="More">{ICONS.dots()}</button>
+        </div>
+      );
+    }
+
+    // Variant B — Slim banner above the tree (when the parent is *purely* a reference, almost a label)
+    function ExternalCardB({ name, url, lastVerified, governsCount }) {
+      const host = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      return (
+        <div className="flex items-center px-3 py-2 rounded-md bg-[#f5f6f8]" style={{ borderLeft: '3px solid #1c5e9a' }}>
+          <span className="mr-2 text-[#1c5e9a]">{ICONS.globe('w-4 h-4')}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#1c5e9a] mr-2">Governed by external</span>
+          <span className="text-[13px] font-medium text-[#1c212b] mr-2 truncate">{name}</span>
+          <a href={url} target="_blank" rel="noreferrer" className="text-[12px] text-[#1c5e9a] underline underline-offset-2 truncate">{host}</a>
+          <span className="ml-auto text-[11px] text-[#72757b] shrink-0">Verified {lastVerified} · governs {governsCount}</span>
+        </div>
+      );
+    }
+
+    // Variant C — Same card silhouette as normal (for tree consistency) but with strong external treatment
+    function ExternalCardC({ name, url, lastVerified, governsCount }) {
+      const host = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      return (
+        <div
+          className="flex items-center px-4 py-3 bg-white border rounded-md"
+          style={{ borderColor: C.gray10 }}
+        >
+          <span className="mr-2 text-[#9e9ea5] opacity-30">{ICONS.chev()}</span>
+          <span className="mr-2 text-[#1c5e9a]">{ICONS.globe('w-4 h-4')}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-semibold text-[#1c212b] truncate">{name}</span>
+              <span className="inline-flex items-center gap-1 px-2 h-[20px] rounded-[3px] text-[11px] font-medium bg-[#eef4fa] text-[#1c5e9a]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1c5e9a]" />
+                External · online T&C
+              </span>
+            </div>
+            <div className="text-[12px] text-[#72757b] mt-0.5 truncate">
+              <a href={url} target="_blank" rel="noreferrer" className="text-[#1c5e9a] hover:underline">{host}</a>
+              <span className="mx-1.5">·</span>
+              Governs {governsCount} contracts
+              <span className="mx-1.5">·</span>
+              Last verified {lastVerified}
+            </div>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-3 inline-flex items-center gap-1.5 px-2.5 h-[28px] rounded-md text-[12px] font-medium border text-[#1c212b] hover:bg-[#f5f6f8]"
+            style={{ borderColor: C.gray10 }}
+          >
+            <span>Open URL</span>
+            <span className="text-[#43474f]">{ICONS.external('w-3 h-3')}</span>
+          </a>
+          <button className="ml-1 text-[#43474f] hover:text-[#1c212b]" title="More">{ICONS.dots()}</button>
+        </div>
+      );
+    }
+
+    /* ---------- Tree examples ---------- */
+
+    function TreeWith({ rootNode }) {
+      return (
+        <div className="border rounded-lg p-5 bg-[#fafbfc]" style={{ borderColor: C.gray10 }}>
+          <div className="space-y-2">
+            {rootNode}
+            <div className="pl-8 space-y-2">
+              <NormalCard
+                name="Okta SOW – Identity Cloud Onboarding"
+                id="IC-3041"
+                type="Statement of Work"
+                dates="Feb 2025 – Feb 2027"
+                desc="Implementation services for Identity Cloud rollout across 3,200 seats"
+                status="Active"
+                amendsTag="Governed by"
+              />
+              <NormalCard
+                name="Okta Order Form #4"
+                id="IC-3042"
+                type="Order Form"
+                dates="Apr 2025 – Apr 2026"
+                desc="Adds Advanced Server Access for 250 admin seats"
+                status="Active"
+                amendsTag="Governed by"
+              />
+              <NormalCard
+                name="Okta Order Form #5"
+                id="IC-3043"
+                type="Order Form"
+                dates="Sep 2025 – Apr 2026"
+                desc="Pilot of FastPass for sales org (90 seats)"
+                status="Active"
+                amendsTag="Governed by"
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------- The user's first attempt (for comparison) ---------- */
+
+    function FirstAttempt() {
+      return (
+        <div className="flex items-center px-4 py-3 rounded-md" style={{ background:'#f1f2f5', border:'1px solid '+C.gray10 }}>
+          <span className="mr-2 text-[#9e9ea5]">{ICONS.chev()}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold text-[#1c212b] truncate">Microsoft 365 Enterprise Licensing SOW [EXTERNAL SOURCE]</div>
+            <div className="text-[12px] text-[#72757b] mt-0.5 truncate">IC-2202 · Statement of Work · Jun 2022 – Jun 2025 · Covers M365 E5 licensing, deployment, and ongoing support services</div>
+          </div>
+          <span className="ml-3 inline-flex items-center px-2 h-[22px] rounded-md text-[12px] font-medium bg-[#e2e2e8] text-[#43474f]">Active</span>
+          <button className="ml-2 text-[#43474f] hover:text-[#1c212b]">{ICONS.dots()}</button>
+        </div>
+      );
+    }
+
+    /* ---------- App ---------- */
+
+    function Section({ title, kicker, children, note }) {
+      return (
+        <section className="mb-12">
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-[#72757b] mb-1">{kicker}</div>
+          <h2 className="font-display text-[20px] font-bold text-[#0e1116] mb-3">{title}</h2>
+          {note && <p className="text-[14px] text-[#43474f] leading-[1.55] max-w-[800px] mb-5">{note}</p>}
+          {children}
+        </section>
+      );
+    }
+
+    function App() {
+      return (
+        <div className="min-h-full bg-white">
+          <header className="border-b" style={{ borderColor: C.gray10 }}>
+            <div className="max-w-[1100px] mx-auto px-8 py-6">
+              <div className="text-[12px] font-semibold uppercase tracking-wider text-[#72757b]">Design exploration</div>
+              <h1 className="font-display text-[28px] font-bold text-[#0e1116]">External-source placeholder node</h1>
+              <p className="text-[14px] text-[#43474f] mt-2 max-w-[820px] leading-[1.55]">
+                Some contract families have a parent that lives outside Ironclad — typically a vendor's online
+                Terms &amp; Conditions URL (Okta, AWS, Stripe, etc.). Children reference it, but it has no detail
+                page, no negotiated term, no IC ID, and no obligations tracked through Ironclad. The node has to
+                say all of that without being mistaken for a managed contract.
+              </p>
+            </div>
+          </header>
+
+          <main className="max-w-[1100px] mx-auto px-8 py-10">
+
+            <Section
+              kicker="Reference"
+              title="Your first attempt"
+              note="Same card as a normal contract, greyed out, with “[EXTERNAL SOURCE]” appended to the title. Reads as a disabled managed contract — but it still shows IC-2202, a fixed term, an Active status pill, and a description that all imply Ironclad owns the record. None of those should be there."
+            >
+              <FirstAttempt />
+            </Section>
+
+            <Section
+              kicker="Recommended · Variant A"
+              title="Distinct shape, dashed reference card"
+              note="Different fill + dashed border so it can never be confused with a managed contract. Globe icon, explicit EXTERNAL tag, no IC-#, no term dates, no Active pill — just the host URL, what it governs, and when Ironclad last verified the link. Click → opens the URL in a new tab. No detail page expected."
+            >
+              <TreeWith
+                rootNode={
+                  <ExternalCardA
+                    name="Okta Master Subscription Agreement (online)"
+                    url="https://www.okta.com/agreements/online-msa"
+                    lastVerified="Apr 12, 2026"
+                    governsCount={3}
+                  />
+                }
+              />
+            </Section>
+
+            <Section
+              kicker="Variant B"
+              title="Slim banner above the tree"
+              note="When the external T&C is purely a label and adds no managed value, it doesn't have to look like a card at all. Renders as a single-line banner above the children. Most minimal — useful if the team's stance is “we don't manage this, we just acknowledge it.”"
+            >
+              <TreeWith
+                rootNode={
+                  <ExternalCardB
+                    name="Okta MSA (online)"
+                    url="https://www.okta.com/agreements/online-msa"
+                    lastVerified="Apr 12, 2026"
+                    governsCount={3}
+                  />
+                }
+              />
+            </Section>
+
+            <Section
+              kicker="Variant C"
+              title="Same silhouette, strong tag treatment"
+              note="Keeps the card shape so the tree's visual rhythm doesn't change. The disabled chevron + globe icon + “External · online T&C” chip + host URL row do the heavy lifting. Good middle ground if the team wants consistency in the tree but clarity in the content."
+            >
+              <TreeWith
+                rootNode={
+                  <ExternalCardC
+                    name="Okta Master Subscription Agreement (online)"
+                    url="https://www.okta.com/agreements/online-msa"
+                    lastVerified="Apr 12, 2026"
+                    governsCount={3}
+                  />
+                }
+              />
+            </Section>
+
+            <Section
+              kicker="Design principles"
+              title="What this node should and shouldn't claim"
+              note=""
+            >
+              <div className="grid grid-cols-2 gap-6 max-w-[920px]">
+                <div className="border rounded-lg p-5" style={{ borderColor: C.gray10 }}>
+                  <div className="text-[13px] font-semibold uppercase tracking-wider text-[#2e846c] mb-3">Show</div>
+                  <ul className="space-y-2 text-[14px] text-[#1c212b] leading-[1.55]">
+                    <li>✓ Vendor's name for the agreement (e.g., "Okta Master Subscription Agreement")</li>
+                    <li>✓ The source URL (verbatim, copyable, openable)</li>
+                    <li>✓ A clear "EXTERNAL" tag — large enough to read at a glance</li>
+                    <li>✓ How many children it governs (count of references)</li>
+                    <li>✓ When Ironclad last verified the URL (for change-detection later)</li>
+                    <li>✓ "Governed by" tag on children (not "Amends" — different relationship)</li>
+                  </ul>
+                </div>
+                <div className="border rounded-lg p-5" style={{ borderColor: C.gray10 }}>
+                  <div className="text-[13px] font-semibold uppercase tracking-wider text-[#d14e38] mb-3">Don't show</div>
+                  <ul className="space-y-2 text-[14px] text-[#1c212b] leading-[1.55]">
+                    <li>✗ An IC-# internal ID — there's no internal record</li>
+                    <li>✗ Effective / expiration dates — online T&Cs are evergreen</li>
+                    <li>✗ An "Active" status pill — implies a lifecycle Ironclad manages</li>
+                    <li>✗ A description that reads like a contract summary</li>
+                    <li>✗ An expand chevron pointing to a detail page that doesn't exist</li>
+                    <li>✗ Edit / delete actions that would suggest Ironclad-owned content</li>
+                  </ul>
+                </div>
+              </div>
+            </Section>
+
+            <Section
+              kicker="Future"
+              title="Where the Contract Family agent could go from here"
+              note="Right now this is a static reference. Once the agent can read the page behind the URL, the card can earn more affordances:"
+            >
+              <ul className="list-disc pl-6 text-[14px] text-[#1c212b] leading-[1.65] max-w-[820px] space-y-1.5">
+                <li><strong>Change detection:</strong> the agent re-fetches periodically and flags when the vendor edits the terms. The "Last verified" line becomes <em>"Updated 3 days ago — review changes"</em>.</li>
+                <li><strong>Versioned snapshots:</strong> the agent archives the HTML each time it changes, so the placeholder gains a history (still no negotiation, but a record).</li>
+                <li><strong>Inferred obligations:</strong> the agent can extract a small set of obligations from the public page (SLA, breach window, subprocessor list) and surface them on the children — without the placeholder pretending to be a managed contract.</li>
+                <li><strong>Link inference at intake:</strong> when a new Okta child contract is uploaded that mentions the same URL, the agent automatically links it to this placeholder.</li>
+              </ul>
+            </Section>
+
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
