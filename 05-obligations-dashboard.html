@@ -584,6 +584,14 @@
       };
 
       if (mode === 'edit') {
+        // If the popover was opened directly in edit mode (i.e., from the
+        // ear menu), Cancel closes the entire popover — there's no prior
+        // "source view" state to fall back to. If it transitioned from view
+        // to edit (i.e., from the source card's "Edit value" button), Cancel
+        // returns to the source view.
+        const openedInEditMode = initialMode === 'edit';
+        const cancel = () => { openedInEditMode ? onClose() : setMode('view'); };
+        const save   = () => { openedInEditMode ? onClose() : setMode('view'); };
         return (
           <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
             <div>
@@ -602,13 +610,13 @@
             </label>
             <div className="flex gap-2.5 items-center justify-end pt-1">
               <button
-                onClick={()=>setMode('view')}
+                onClick={cancel}
                 className="bg-[#f5f6f8] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#edeef2]"
               >
                 <span className="text-[12px] font-semibold text-[#1c212b] leading-[16px] tracking-[-0.24px] pr-1">Cancel</span>
               </button>
               <button
-                onClick={()=>setMode('view')}
+                onClick={save}
                 className="bg-white border border-[#1c212b] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#f5f6f8]"
               >
                 <span className="text-[12px] font-semibold text-[#1c212b] leading-[16px] tracking-[-0.24px] pr-1">Save value</span>
