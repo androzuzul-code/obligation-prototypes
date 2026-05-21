@@ -537,9 +537,10 @@
       const [mode, setMode] = useState(initialMode || 'view');
       const [draft, setDraft] = useState('');
       const [preventAI, setPreventAI] = useState(false);
-      // Manual drag offset relative to the cell's anchor — lets the user
-      // pull the card anywhere by dragging its white area.
-      const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+      // Manual drag position (absolute viewport coords). When set, overrides
+      // the cell-anchored position so the card stays where the user pulled
+      // it across same-column cell changes.
+      const [draggedPos, setDraggedPos] = useState(null); // { x, y } | null
 
       // Reset edit state whenever the cell or open-mode changes
       useEffect(() => {
@@ -548,23 +549,24 @@
         setPreventAI(false);
       }, [row?.n, col?.id, initialMode]);
 
-      // Drag offset is preserved when moving within the same column;
-      // only reset when the column changes (or the popover opens fresh).
+      // Drag position is preserved when moving within the same column;
+      // reset when the column changes so the card re-anchors to the new
+      // column's cells.
       useEffect(() => {
-        setDragOffset({ x: 0, y: 0 });
+        setDraggedPos(null);
       }, [col?.id]);
 
       const onMouseDownDrag = useCallback((e) => {
         // Don't start a drag on any interactive control
         if (e.target.closest('button, a, input, select, textarea, label, .no-drag')) return;
+        if (!ref.current) return;
         e.preventDefault();
-        const startX = e.clientX, startY = e.clientY;
-        let curOffset;
-        setDragOffset(o => { curOffset = o; return o; });
-        const startOffset = curOffset || { x:0, y:0 };
-        const onMove = (ev) => setDragOffset({
-          x: startOffset.x + (ev.clientX - startX),
-          y: startOffset.y + (ev.clientY - startY),
+        const cardRect = ref.current.getBoundingClientRect();
+        const grabX = e.clientX - cardRect.left;
+        const grabY = e.clientY - cardRect.top;
+        const onMove = (ev) => setDraggedPos({
+          x: ev.clientX - grabX,
+          y: ev.clientY - grabY,
         });
         const onUp = () => {
           window.removeEventListener('mousemove', onMove);
@@ -602,15 +604,20 @@
       const data = tpl(row);
 
       const W = 460;
-      let top = anchorRect.bottom + 6;
-      let left = anchorRect.left;
-      const vw = window.innerWidth, vh = window.innerHeight;
-      if (left + W > vw - 12) left = Math.max(12, vw - W - 12);
-      const estHeight = mode === 'edit' ? 280 : 340;
-      if (top + estHeight > vh - 12) top = Math.max(12, anchorRect.top - estHeight - 6);
-      // Apply manual drag offset on top of anchored position
-      top  += dragOffset.y;
-      left += dragOffset.x;
+      let top, left;
+      if (draggedPos) {
+        // User has explicitly placed the card — keep it where they put it,
+        // independent of which cell is now active.
+        top = draggedPos.y;
+        left = draggedPos.x;
+      } else {
+        top = anchorRect.bottom + 6;
+        left = anchorRect.left;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        if (left + W > vw - 12) left = Math.max(12, vw - W - 12);
+        const estHeight = mode === 'edit' ? 280 : 340;
+        if (top + estHeight > vh - 12) top = Math.max(12, anchorRect.top - estHeight - 6);
+      }
 
       const cardShell = {
         position: 'fixed', top, left, width: W, zIndex: 40,
