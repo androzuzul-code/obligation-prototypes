@@ -110,7 +110,7 @@
     function EntityChip({ label, kind }) {
       const ic = FIGMA_ICONS[kind] || FIGMA_ICONS.contract;
       return (
-        <span className="inline-flex items-center gap-1.5 pl-1.5 pr-2 h-[24px] rounded-[4px] bg-[#f5f6f8] text-[13px] text-[#1c212b] max-w-full">
+        <span className="inline-flex items-center gap-1.5 pl-1.5 pr-2 h-[24px] rounded-[4px] bg-[#f5f6f8] hover:bg-[#d4d6dc] transition-colors text-[13px] text-[#1c212b] max-w-full">
           <span className="shrink-0">
             <svg width="14" height="14" viewBox={ic.viewBox} fill="none">
               <path d={ic.path} transform={`translate(${ic.tx},${ic.ty})`} fill="#43474f" />
