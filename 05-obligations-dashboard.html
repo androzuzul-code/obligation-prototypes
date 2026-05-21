@@ -35,12 +35,6 @@
       position: relative;
       z-index: 1;
     }
-    /* Flagged value treatment */
-    tr.data-row.row-flagged > td { background: #fff9ec; }
-    tr.data-row.row-flagged:hover > td { background: #fff3d6; }
-    tr.data-row.row-flagged:hover > td.data-cell:hover { background: #ffeec5; }
-    th.col-flagged { background: #fff9ec !important; }
-
     /* Cell ear: a small overflow-action tab on the right edge of a hovered cell */
     tr.data-row > td.data-cell { position: relative; }
     .cell-ear {
@@ -538,7 +532,7 @@
       );
     }
 
-    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc, onCloseDoc, isDocOpen, initialMode, flag, onDismissFlag }) {
+    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc, onCloseDoc, isDocOpen, initialMode }) {
       const ref = useRef(null);
       const [mode, setMode] = useState(initialMode || 'view');
       const [draft, setDraft] = useState('');
@@ -707,19 +701,6 @@
             </button>
           </div>
 
-          {/* Flag block — shown when this cell has an active flag */}
-          {flag && (
-            <div className="rounded-lg p-4 flex flex-col gap-1.5" style={{ background:'#fff9ec', border:'1px solid #f3e2b3' }}>
-              <div className="flex items-start gap-2">
-                <span className="mt-0.5"><FlagIcon size={14} color="#a05c14" fill="#ffe3b1" /></span>
-                <p className="text-[14px] text-[#1c212b] leading-[20px] tracking-[-0.28px] italic flex-1">"{flag.reason}"</p>
-              </div>
-              <p className="text-[12px] text-[#43474f] leading-[16px] tracking-[-0.24px] pl-6">
-                Flagged by {flag.by} {flag.kind === 'ai' ? 'as a low-confidence value' : 'as incorrect value'} on {flag.on}
-              </p>
-            </div>
-          )}
-
           {/* Rationale paragraph */}
           <p className="text-[14px] text-[#1c212b] leading-[20px] tracking-[-0.28px]">{data.rationale}</p>
 
@@ -765,16 +746,8 @@
             </div>
           </div>
 
-          {/* Edit-value CTA (and Dismiss flag when applicable) */}
-          <div className="flex items-center justify-end gap-2.5">
-            {flag && (
-              <button
-                onClick={onDismissFlag}
-                className="bg-[#f5f6f8] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#edeef2]"
-              >
-                <span className="text-[12px] font-semibold text-[#1c212b] leading-[16px] tracking-[-0.24px] pr-1">Dismiss flag</span>
-              </button>
-            )}
+          {/* Edit-value CTA only */}
+          <div className="flex items-center justify-end">
             <button
               onClick={()=>setMode('edit')}
               className="bg-white border border-[#1c212b] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#f5f6f8]"
@@ -1158,42 +1131,6 @@
     };
     const manualEntry = (row, colId) => row && colId ? MANUAL_OVERRIDES[`${row.n}:${colId}`] : null;
 
-    /* Flagged values — cells the AI is unsure about, or that a person has
-     * marked as incorrect. Rendered in orange in the table, with a flag
-     * icon; their rows + column headers tint yellow. Source card shows
-     * the flag reason at the top with Dismiss + Edit actions. */
-    const FLAGGED_OVERRIDES = {
-      '2:due':           { by:'Ironclad AI',     kind:'ai',     reason:"Multiple candidate due dates found — 'Dec 31, 2025' and 'Dec 31, 2026' both appear in the source clause.",                       on:'Apr 22, 2026' },
-      '5:status':        { by:'Mingsheng Hong',  kind:'person', reason:"I don't think this is the correct value — vendor confirmed the credit was claimed before the deadline.",                          on:'Feb 20, 2026' },
-      '9:progress':      { by:'Ironclad AI',     kind:'ai',     reason:"Low confidence (52%) — Q1 reporting was incomplete; SLA credit eligibility couldn't be fully reconciled.",                          on:'Mar 4, 2026' },
-      '14:noticeWindow': { by:'Ironclad AI',     kind:'ai',     reason:"Source clause uses both 'within twenty-four (24) hours' and 'within 1 business day' — AI flagged for human review.",                on:'Feb 9, 2026' },
-      '17:threshold':    { by:'Alex Avery',      kind:'person', reason:"Threshold may need recalculation — pricing addendum from Mar 2026 reset the baseline; current value still references the old tier.", on:'Mar 12, 2026' },
-    };
-    const flagEntry = (row, colId, dismissedSet) => {
-      if (!row || !colId) return null;
-      const key = `${row.n}:${colId}`;
-      if (dismissedSet && dismissedSet.has(key)) return null;
-      return FLAGGED_OVERRIDES[key] || null;
-    };
-
-    /* Flag icon helper */
-    function FlagIcon({ size=12, color='#bf6c19', fill='#fff0d7' }) {
-      return (
-        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M2.5 1.2v9.6" stroke={color} strokeWidth="1.4" strokeLinecap="round"/>
-          <path d="M2.5 1.5h6.7l-1.1 2.2 1.1 2.2H2.5z" stroke={color} strokeWidth="1.3" strokeLinejoin="round" fill={fill}/>
-        </svg>
-      );
-    }
-    function FlaggedValue({ text }) {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-[#a05c14]" title="Flagged value">
-          <FlagIcon />
-          <span className="text-[13px] font-medium truncate">{text}</span>
-        </span>
-      );
-    }
-
     /* Edit-mode field type per column — drives the editable widgets in the
      * card's edit state. */
     const EDIT_FIELDS = {
@@ -1330,7 +1267,7 @@
       );
     }
 
-    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell, dismissedFlags, activeFlagsByCol, activeFlagsByRow }) {
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell }) {
 
       const cellFor = (id, r) => {
         switch(id) {
@@ -1386,7 +1323,7 @@
 
       const Header = ({ col, cellBorder, isLast, dense, headerPadY }) => (
         <th
-          className={`relative px-3 ${headerPadY || 'py-2.5'} text-[11px] font-semibold text-[#72757b] select-none border-b text-left align-middle ${activeFlagsByCol && activeFlagsByCol.has(col.id) ? 'col-flagged' : ''}`}
+          className={`relative px-3 ${headerPadY || 'py-2.5'} text-[11px] font-semibold text-[#72757b] select-none border-b text-left align-middle`}
           style={{
             width: colWidths[col.id], minWidth: colWidths[col.id], maxWidth: colWidths[col.id],
             borderColor: C.gray10, background:'#ffffff',
@@ -1464,7 +1401,7 @@
                 {rows.map(r => (
                   <tr
                     key={r.n}
-                    className={`${dense ? 'data-row' : 'row-hover'} cursor-pointer ${dense && activeFlagsByRow && activeFlagsByRow.has(r.n) ? 'row-flagged' : ''}`}
+                    className={`${dense ? 'data-row' : 'row-hover'} cursor-pointer`}
                     onClick={()=>onRowClick(r)}
                     style={dense ? { height: 36 } : null}
                   >
@@ -1474,17 +1411,6 @@
                     {orderedCols.map((col, idx) => {
                       const isActive = dense && activeCell && activeCell.rowN === r.n && activeCell.colId === col.id;
                       const earOpen = dense && earMenuCell && earMenuCell.rowN === r.n && earMenuCell.colId === col.id;
-                      const flagged = dense ? !!flagEntry(r, col.id, dismissedFlags) : false;
-                      // What appears in the cell — flagged cells get the orange + flag icon
-                      // rendering, overriding the normal cell renderer.
-                      let cellContent;
-                      if (flagged) {
-                        const raw = rawCellValue(r, col.id);
-                        const text = raw === '' || raw == null ? '—' : String(raw);
-                        cellContent = <FlaggedValue text={text} />;
-                      } else {
-                        cellContent = cellFor(col.id, r);
-                      }
                       return (
                         <td
                           key={col.id}
@@ -1503,7 +1429,7 @@
                           }}
                           onClick={dense ? (e)=>{ e.stopPropagation(); onCellClick(r, col, e.currentTarget); } : undefined}
                         >
-                          {cellContent}
+                          {cellFor(col.id, r)}
                           {dense && (
                             <button
                               type="button"
@@ -1697,28 +1623,6 @@
       // Table view: 'list' (additive columns) or 'data' (cell-based, dense, every column visible).
       // Default to Data so the source-card + doc-preview flow is what users see first.
       const [tableView, setTableView] = useState('data');
-
-      // Dismissed flags (keys like "rowN:colId")
-      const [dismissedFlags, setDismissedFlags] = useState(() => new Set());
-      const dismissFlag = useCallback((rowN, colId) => {
-        setDismissedFlags(s => { const n = new Set(s); n.add(`${rowN}:${colId}`); return n; });
-      }, []);
-      const activeFlagsByCol = useMemo(() => {
-        const m = new Set();
-        for (const key of Object.keys(FLAGGED_OVERRIDES)) {
-          if (dismissedFlags.has(key)) continue;
-          m.add(key.split(':')[1]);
-        }
-        return m;
-      }, [dismissedFlags]);
-      const activeFlagsByRow = useMemo(() => {
-        const m = new Set();
-        for (const key of Object.keys(FLAGGED_OVERRIDES)) {
-          if (dismissedFlags.has(key)) continue;
-          m.add(Number(key.split(':')[0]));
-        }
-        return m;
-      }, [dismissedFlags]);
 
       // Active cell source popover (Data view only)
       const [sourceCell, setSourceCell] = useState(null); // { row, col, rect }
@@ -2161,9 +2065,6 @@
                     }
                     onEarClick={onEarClick}
                     earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
-                    dismissedFlags={dismissedFlags}
-                    activeFlagsByCol={activeFlagsByCol}
-                    activeFlagsByRow={activeFlagsByRow}
                   />
                 </div>
                 <SourcePopover
@@ -2179,13 +2080,6 @@
                     docPreview.col.id === sourceCell.col.id
                   }
                   initialMode={sourceCell?.mode || 'view'}
-                  flag={sourceCell ? flagEntry(sourceCell.row, sourceCell.col.id, dismissedFlags) : null}
-                  onDismissFlag={() => {
-                    if (sourceCell) {
-                      dismissFlag(sourceCell.row.n, sourceCell.col.id);
-                      closeSource();
-                    }
-                  }}
                 />
                 <CellActionMenu
                   anchorRect={earMenu?.rect}
