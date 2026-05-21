@@ -861,17 +861,20 @@
           icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M5 1.5v11M9 1.5v11M1.5 5h11M1.5 9h11" stroke="currentColor" strokeWidth="1.2"/></svg> },
       ];
       return (
-        <div className="inline-flex items-center bg-white rounded-lg p-0.5 border shrink-0 h-12" style={{ borderColor: C.gray10 }}>
-          {opts.map(o => (
-            <button key={o.id}
-              onClick={()=>onChange(o.id)}
-              className={`inline-flex items-center gap-1.5 px-3 h-10 rounded-md text-[13px] font-medium ${value===o.id?'bg-[#f5f6f8] text-[#1c212b]':'text-[#43474f] hover:text-[#1c212b]'}`}
-              title={`${o.label} view`}
-            >
-              <span className={value===o.id?'text-[#1c212b]':'text-[#43474f]'}>{o.icon}</span>
-              {o.label}
-            </button>
-          ))}
+        <div className="inline-flex items-center bg-[#f5f6f8] rounded-full p-0.5 shrink-0 h-12">
+          {opts.map(o => {
+            const active = value === o.id;
+            return (
+              <button key={o.id}
+                onClick={()=>onChange(o.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 h-10 rounded-full text-[13px] font-medium transition-colors ${active ? 'bg-[#1c212b] text-white' : 'text-[#1c212b] hover:bg-[#edeef2]'}`}
+                title={`${o.label} view`}
+              >
+                <span>{o.icon}</span>
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       );
     }
