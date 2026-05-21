@@ -11,15 +11,12 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     html, body, #root { height: 100%; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+    body, .font-display {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       color: #1c212b;
       letter-spacing: -0.005em;
       -webkit-font-smoothing: antialiased;
       background: #fff;
-    }
-    .font-display {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Inter", system-ui, sans-serif;
     }
     .scroll-hide::-webkit-scrollbar { display: none; }
     .scroll-hide { scrollbar-width: none; }
@@ -109,6 +106,7 @@
      * Uses the actual icons pulled from the Figma component. */
     function EntityChip({ label, kind }) {
       const ic = FIGMA_ICONS[kind] || FIGMA_ICONS.contract;
+      const weightCls = kind === 'obligation' ? 'font-semibold' : 'font-normal';
       return (
         <span className="inline-flex items-center gap-1.5 pl-1.5 pr-2 h-[24px] rounded-[4px] bg-[#f5f6f8] hover:bg-[#d4d6dc] transition-colors text-[13px] text-[#1c212b] max-w-full">
           <span className="shrink-0">
@@ -116,7 +114,7 @@
               <path d={ic.path} transform={`translate(${ic.tx},${ic.ty})`} fill="#43474f" />
             </svg>
           </span>
-          <span className="truncate">{label}</span>
+          <span className={`truncate ${weightCls}`}>{label}</span>
         </span>
       );
     }
