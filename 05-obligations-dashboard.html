@@ -1531,8 +1531,9 @@
         return m;
       }, []);
 
-      // Table view: 'list' (default style, additive columns) or 'data' (cell-based, dense, every column visible)
-      const [tableView, setTableView] = useState('list');
+      // Table view: 'list' (additive columns) or 'data' (cell-based, dense, every column visible).
+      // Default to Data so the source-card + doc-preview flow is what users see first.
+      const [tableView, setTableView] = useState('data');
 
       // Active cell source popover (Data view only)
       const [sourceCell, setSourceCell] = useState(null); // { row, col, rect }
@@ -1582,10 +1583,30 @@
       // Document preview slideout
       const [docPreview, setDocPreview] = useState(null); // { row, col, data }
       const tableScrollerRef = useRef(null);
+      const PANEL_DEFAULT_W = 640;
       const onViewInDoc = useCallback((payload) => {
+        // Pan the table BEFORE mounting the doc preview, so the active cell
+        // and the source card both end up clear of where the panel will sit.
+        const sc = tableScrollerRef.current;
+        if (sc) {
+          const sel = `[data-row="${payload.row.n}"][data-col="${payload.col.id}"]`;
+          const cell = sc.querySelector(sel);
+          if (cell) {
+            const cellRect = cell.getBoundingClientRect();
+            const scRect = sc.getBoundingClientRect();
+            // Where the right edge of the table area will be once the panel
+            // claims its flex slot.
+            const futureRight = scRect.right - PANEL_DEFAULT_W;
+            const rightLimit = futureRight - 16;
+            // We need cell.left + source-card-width to fit inside that area.
+            const desiredRight = cellRect.left + 460;
+            if (desiredRight > rightLimit) {
+              const delta = desiredRight - rightLimit;
+              sc.scrollTo({ left: sc.scrollLeft + delta, behavior: 'smooth' });
+            }
+          }
+        }
         setDocPreview(payload);
-        // Keep the source card open so the user can still see the rationale;
-        // we'll re-anchor it after layout settles in an effect below.
       }, []);
       const closeDoc = useCallback(() => setDocPreview(null), []);
 
