@@ -706,8 +706,13 @@
           {/* Rationale paragraph */}
           <p className="text-[14px] text-[#1c212b] leading-[20px] tracking-[-0.28px]">{data.rationale}</p>
 
-          {/* Source block — heading is the source DOCUMENT name */}
-          <div className="bg-[#f5f6f8] rounded-lg overflow-hidden">
+          {/* Source block — heading is the source DOCUMENT name.
+              When the doc preview is open for this cell, the whole block
+              tints light blue to indicate the active source. */}
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ background: isDocOpen ? '#eef4fa' : '#f5f6f8' }}
+          >
             <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <p className="text-[14px] font-semibold text-[#43474f] leading-[20px] tracking-[-0.28px] truncate" title={data.doc}>{data.doc}</p>
             </div>
@@ -717,21 +722,21 @@
             </div>
             <div className="px-4 pb-4">
               {isDocOpen ? (
-                <div className="inline-flex items-center gap-1.5 pl-3 pr-1 h-[28px] rounded-full bg-[#eef4fa] border" style={{ borderColor:'#cfe0f3' }}>
+                <span className="inline-flex items-center gap-2 text-[14px] font-medium text-[#43474f] leading-[20px] tracking-[-0.28px]">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z" stroke="#1c5e9a" strokeWidth="1.3"/>
-                    <circle cx="7" cy="7" r="1.6" fill="#1c5e9a"/>
+                    <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z" stroke="#43474f" strokeWidth="1.3"/>
+                    <circle cx="7" cy="7" r="1.6" fill="#43474f"/>
                   </svg>
-                  <span className="text-[13px] font-medium text-[#1c5e9a] leading-[20px]">Viewing in document</span>
+                  <span>Viewing in document</span>
                   <button
                     type="button"
                     onClick={onCloseDoc}
                     aria-label="Close document"
-                    className="w-5 h-5 inline-flex items-center justify-center rounded-full text-[#1c5e9a] hover:bg-[#dceaf5]"
+                    className="w-5 h-5 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#dceaf5] hover:text-[#1c212b]"
                   >
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   </button>
-                </div>
+                </span>
               ) : (
                 <button
                   onClick={()=>onViewInDoc({ row, col, data })}
