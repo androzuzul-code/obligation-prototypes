@@ -541,13 +541,18 @@
       // pull the card anywhere by dragging its white area.
       const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-      // Reset edit + drag state when popover swaps cells
+      // Reset edit state whenever the cell or open-mode changes
       useEffect(() => {
         setMode(initialMode || 'view');
         setDraft(String(rawCellValue(row || {}, col?.id) ?? ''));
         setPreventAI(false);
-        setDragOffset({ x: 0, y: 0 });
       }, [row?.n, col?.id, initialMode]);
+
+      // Drag offset is preserved when moving within the same column;
+      // only reset when the column changes (or the popover opens fresh).
+      useEffect(() => {
+        setDragOffset({ x: 0, y: 0 });
+      }, [col?.id]);
 
       const onMouseDownDrag = useCallback((e) => {
         // Don't start a drag on any interactive control
@@ -1624,6 +1629,9 @@
       // Default to Data so the source-card + doc-preview flow is what users see first.
       const [tableView, setTableView] = useState('data');
 
+      // Arrow-key navigation (Data view, when source card is open).
+      // Defined after sourceCell + filtered + orderedCols are available — see effect below.
+
       // Active cell source popover (Data view only)
       const [sourceCell, setSourceCell] = useState(null); // { row, col, rect }
       const onCellClick = useCallback((row, col, el) => {
@@ -1822,6 +1830,40 @@
 
       const onSort = (col) => setSort(s => ({ col, dir: s.col===col ? (s.dir==='asc'?'desc':'asc') : 'asc' }));
       const onToggleRow = (n) => setSelected(s => { const next = new Set(s); next.has(n) ? next.delete(n) : next.add(n); return next; });
+
+      // Arrow-key cell navigation — only when source card is open in Data view.
+      // The card's drag offset is preserved within the same column (handled
+      // inside SourcePopover) and reset when the column changes.
+      useEffect(() => {
+        if (!sourceCell || tableView !== 'data') return;
+        const onKey = (e) => {
+          if (e.target && e.target.closest && e.target.closest('input, textarea, select')) return;
+          if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+          e.preventDefault();
+          const rowIdx = filtered.findIndex(r => r.n === sourceCell.row.n);
+          const colIdx = orderedCols.findIndex(c => c.id === sourceCell.col.id);
+          if (rowIdx < 0 || colIdx < 0) return;
+          let nextRowIdx = rowIdx, nextColIdx = colIdx;
+          if (e.key === 'ArrowUp')    nextRowIdx = Math.max(0, rowIdx - 1);
+          if (e.key === 'ArrowDown')  nextRowIdx = Math.min(filtered.length - 1, rowIdx + 1);
+          if (e.key === 'ArrowLeft')  nextColIdx = Math.max(0, colIdx - 1);
+          if (e.key === 'ArrowRight') nextColIdx = Math.min(orderedCols.length - 1, colIdx + 1);
+          if (nextRowIdx === rowIdx && nextColIdx === colIdx) return;
+          const nextRow = filtered[nextRowIdx];
+          const nextCol = orderedCols[nextColIdx];
+          const sc = tableScrollerRef.current;
+          if (!sc) return;
+          const cell = sc.querySelector(`[data-row="${nextRow.n}"][data-col="${nextCol.id}"]`);
+          if (!cell) return;
+          cell.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+          requestAnimationFrame(() => {
+            const rect = cell.getBoundingClientRect();
+            setSourceCell({ row: nextRow, col: nextCol, rect });
+          });
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [sourceCell, tableView, filtered, orderedCols]);
 
       // Aggregate tiles reflect whatever filters are active. The "self" tile
       // is computed from rows *excluding* its own status-filter so the active
