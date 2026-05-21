@@ -1525,6 +1525,14 @@
           if (prev && prev.row.n === row.n && prev.col.id === col.id) return null;
           return { row, col, rect };
         });
+        // If the doc preview is currently open, reload it to reflect the new cell's source
+        setDocPreview(prev => {
+          if (!prev) return prev;
+          if (prev.row.n === row.n && prev.col.id === col.id) return prev;
+          const tpl = SOURCE_TEMPLATES[col.id];
+          if (!tpl) return prev;
+          return { row, col, data: tpl(row) };
+        });
       }, []);
       const closeSource = useCallback(() => setSourceCell(null), []);
 
@@ -1916,7 +1924,11 @@
                     toggleSection={toggleSection}
                     tableView={tableView}
                     onCellClick={onCellClick}
-                    activeCell={sourceCell ? { rowN: sourceCell.row.n, colId: sourceCell.col.id } : null}
+                    activeCell={
+                      sourceCell
+                        ? { rowN: sourceCell.row.n, colId: sourceCell.col.id }
+                        : (docPreview ? { rowN: docPreview.row.n, colId: docPreview.col.id } : null)
+                    }
                     onEarClick={onEarClick}
                     earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
                   />
