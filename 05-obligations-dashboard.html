@@ -539,13 +539,41 @@
       const [mode, setMode] = useState(initialMode || 'view');
       const [draft, setDraft] = useState('');
       const [preventAI, setPreventAI] = useState(false);
+      // Manual drag offset relative to the cell's anchor — lets the user
+      // pull the card anywhere by dragging its white area.
+      const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-      // Reset edit state when popover swaps cells (or re-opens at a new mode)
+      // Reset edit + drag state when popover swaps cells
       useEffect(() => {
         setMode(initialMode || 'view');
         setDraft(String(rawCellValue(row || {}, col?.id) ?? ''));
         setPreventAI(false);
+        setDragOffset({ x: 0, y: 0 });
       }, [row?.n, col?.id, initialMode]);
+
+      const onMouseDownDrag = useCallback((e) => {
+        // Don't start a drag on any interactive control
+        if (e.target.closest('button, a, input, select, textarea, label, .no-drag')) return;
+        e.preventDefault();
+        const startX = e.clientX, startY = e.clientY;
+        let curOffset;
+        setDragOffset(o => { curOffset = o; return o; });
+        const startOffset = curOffset || { x:0, y:0 };
+        const onMove = (ev) => setDragOffset({
+          x: startOffset.x + (ev.clientX - startX),
+          y: startOffset.y + (ev.clientY - startY),
+        });
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        };
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      }, []);
 
       useEffect(() => {
         if (!anchorRect) return;
@@ -577,10 +605,14 @@
       if (left + W > vw - 12) left = Math.max(12, vw - W - 12);
       const estHeight = mode === 'edit' ? 280 : 340;
       if (top + estHeight > vh - 12) top = Math.max(12, anchorRect.top - estHeight - 6);
+      // Apply manual drag offset on top of anchored position
+      top  += dragOffset.y;
+      left += dragOffset.x;
 
       const cardShell = {
         position: 'fixed', top, left, width: W, zIndex: 40,
         boxShadow: '0 0 24px rgba(67,71,79,0.20)',
+        cursor: 'grab',
       };
 
       if (mode === 'edit') {
@@ -593,7 +625,7 @@
         const cancel = () => { openedInEditMode ? onClose() : setMode('view'); };
         const save   = () => { openedInEditMode ? onClose() : setMode('view'); };
         return (
-          <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
+          <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell} onMouseDown={onMouseDownDrag}>
             <div>
               <p className="text-[14px] font-semibold text-[#1c212b] leading-[20px] tracking-[-0.28px]">Edit {col.label.toLowerCase()}</p>
               <p className="text-[14px] text-[#1c212b] leading-[20px] tracking-[-0.28px] mt-1">
@@ -631,7 +663,7 @@
       // Manual-entry variant — no rationale, no doc snippet, just who/when
       if (manual) {
         return (
-          <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
+          <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell} onMouseDown={onMouseDownDrag}>
             <div className="flex items-center justify-between gap-2 -mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[#72757b]">{col.label}</span>
               <button
@@ -658,7 +690,7 @@
       }
 
       return (
-        <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
+        <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell} onMouseDown={onMouseDownDrag}>
           {/* Title row — column name (matches the column header styling) + close X */}
           <div className="flex items-center justify-between gap-2 -mb-1">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#72757b]">{col.label}</span>
