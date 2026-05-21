@@ -626,6 +626,41 @@
         );
       }
 
+      const manual = manualEntry(row, col.id);
+
+      // Manual-entry variant — no rationale, no doc snippet, just who/when
+      if (manual) {
+        const currentVal = String(rawCellValue(row, col.id) || '—');
+        return (
+          <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
+            <div className="flex items-center justify-between gap-2 -mb-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#72757b]">{col.label}</span>
+              <button
+                onClick={onClose}
+                className="w-6 h-6 inline-flex items-center justify-center rounded-md text-[#72757b] hover:bg-[#f5f6f8] hover:text-[#1c212b]"
+                aria-label="Close"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <div>
+              <p className="text-[16px] font-semibold text-[#1c212b] leading-[22px] tracking-[-0.32px]">{currentVal}</p>
+              <p className="text-[13px] text-[#43474f] leading-[18px] tracking-[-0.26px] mt-1.5">
+                Added by {manual.by} on {manual.on}
+              </p>
+            </div>
+            <div className="flex items-center justify-end">
+              <button
+                onClick={()=>setMode('edit')}
+                className="bg-white border border-[#1c212b] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#f5f6f8]"
+              >
+                <span className="text-[12px] font-semibold text-[#1c212b] leading-[16px] tracking-[-0.24px] pr-1">Edit value</span>
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div ref={ref} className="bg-white rounded-[12px] flex flex-col gap-3 p-4" style={cardShell}>
           {/* Title row — column name (matches the column header styling) + close X */}
@@ -1052,6 +1087,18 @@
       threshold:     (r) => ({ rationale: `Threshold value taken from Schedule B. The agent normalizes currency and aggregation period internally; this is the rendered string only.`, doc: fakeDocName(r), quote: `"Tier shall activate once cumulative spend in the fiscal year crosses ${r.threshold}, reconciled at quarter close." (Schedule B §2)` }),
       achievement:   (r) => ({ rationale: `Year-to-date achievement is computed nightly from the payments warehouse and projected to year-end based on rolling 90-day spend.`, doc: 'Acme Payments warehouse', quote: `Year-to-date status: ${r.achievement}. Sourced from invoice data through ${(r.n * 3) % 28 + 1} Apr 2026. Updates nightly from the payments warehouse.` }),
     };
+
+    /* Manual-value overrides — these (row, column) combos were entered by a
+     * person rather than extracted by the agent. The popover swaps to a
+     * simpler card variant for these. */
+    const MANUAL_OVERRIDES = {
+      '5:due':           { by: 'James Whitfield', on: 'Jan 14, 2026' },
+      '9:assignee':      { by: 'Anthony King',    on: 'Mar 8, 2026' },
+      '14:progress':     { by: 'Alex Avery',      on: 'Apr 27, 2026' },
+      '22:customerName': { by: 'Jordan Reyes',    on: 'Feb 19, 2026' },
+      '24:aiGov':        { by: 'Priya Anand',     on: 'Mar 22, 2026' },
+    };
+    const manualEntry = (row, colId) => row && colId ? MANUAL_OVERRIDES[`${row.n}:${colId}`] : null;
 
     /* Edit-mode field type per column — drives the editable widgets in the
      * card's edit state. */
