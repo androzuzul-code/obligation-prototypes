@@ -768,7 +768,6 @@
             width,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
             transition: resizingRef.current ? 'none' : 'transform .22s ease-out',
-            boxShadow: '-12px 0 32px rgba(28,33,43,0.10)',
             borderLeft: `1px solid ${C.gray10}`,
             borderTop: `1px solid ${C.gray10}`,
           }}
@@ -1572,39 +1571,46 @@
       }, []);
       const closeDoc = useCallback(() => setDocPreview(null), []);
 
-      // When the doc preview opens or resizes, scroll the active cell into
-      // view inside the table and re-anchor the source popover to its new rect.
+      // When the doc preview opens / resizes, scroll the active cell so it
+      // stays visible AND has enough room to the right for the source card,
+      // so the card never overlaps the doc preview panel.
+      const SOURCE_CARD_W = 460;
+      const EDGE_BUFFER = 16;
       const reanchorActiveCell = useCallback(() => {
         if (!sourceCell) return;
         const sc = tableScrollerRef.current;
         if (!sc) return;
-        // Find the active cell in the table by row + column id (via data attrs)
         const sel = `[data-row="${sourceCell.row.n}"][data-col="${sourceCell.col.id}"]`;
         const cell = sc.querySelector(sel);
         if (!cell) return;
         const cellRect = cell.getBoundingClientRect();
         const scRect = sc.getBoundingClientRect();
-        // If the cell's right edge is past the visible right edge of the
-        // scroller, scroll the table so the cell sits inside the visible area.
-        if (cellRect.right > scRect.right - 8) {
-          sc.scrollLeft += (cellRect.right - (scRect.right - 8));
-        } else if (cellRect.left < scRect.left + 8) {
-          sc.scrollLeft -= ((scRect.left + 8) - cellRect.left);
+        // Right-side overflow takes into account the source card's width,
+        // so cell.left + source-card-width must fit within the visible area.
+        const rightLimit = scRect.right - EDGE_BUFFER;
+        const desiredRight = cellRect.left + SOURCE_CARD_W;
+        if (desiredRight > rightLimit) {
+          sc.scrollLeft += (desiredRight - rightLimit);
+        } else if (cellRect.left < scRect.left + EDGE_BUFFER) {
+          sc.scrollLeft -= ((scRect.left + EDGE_BUFFER) - cellRect.left);
         }
-        // Re-measure after scroll
         requestAnimationFrame(() => {
           const r = cell.getBoundingClientRect();
           setSourceCell(prev => prev ? { ...prev, rect: r } : prev);
         });
       }, [sourceCell]);
 
-      // Run reanchor whenever the doc preview opens / closes (layout shift)
+      // Fire reanchor twice: immediately (catches the layout shift the moment
+      // the panel mounts as a flex sibling) AND after the slide animation
+      // settles (so the final cell rect is read once everything is at rest).
       useEffect(() => {
-        const id = setTimeout(reanchorActiveCell, 240); // wait for slide-in to settle
-        return () => clearTimeout(id);
+        const ids = [
+          setTimeout(reanchorActiveCell, 0),
+          setTimeout(reanchorActiveCell, 240),
+        ];
+        return () => ids.forEach(clearTimeout);
       }, [docPreview, reanchorActiveCell]);
 
-      // Also called during preview resize ticks
       const onPreviewWidthChange = useCallback(() => {
         reanchorActiveCell();
       }, [reanchorActiveCell]);
