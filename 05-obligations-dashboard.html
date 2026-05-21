@@ -534,7 +534,7 @@
       );
     }
 
-    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc, initialMode }) {
+    function SourcePopover({ anchorRect, row, col, onClose, onViewInDoc, onCloseDoc, isDocOpen, initialMode }) {
       const ref = useRef(null);
       const [mode, setMode] = useState(initialMode || 'view');
       const [draft, setDraft] = useState('');
@@ -645,12 +645,30 @@
               <p className="text-[12px] text-[#43474f] leading-[16px] tracking-[-0.24px]">Extracted by Intake Agent {fakeExtractedDate(row)}</p>
             </div>
             <div className="px-4 pb-4">
-              <button
-                onClick={()=>onViewInDoc({ row, col, data })}
-                className="text-[14px] font-semibold text-[#1c212b] leading-[20px] tracking-[-0.28px] underline underline-offset-2 hover:text-[#2e846c]"
-              >
-                View in document
-              </button>
+              {isDocOpen ? (
+                <div className="inline-flex items-center gap-1.5 pl-3 pr-1 h-[28px] rounded-full bg-[#eef4fa] border" style={{ borderColor:'#cfe0f3' }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z" stroke="#1c5e9a" strokeWidth="1.3"/>
+                    <circle cx="7" cy="7" r="1.6" fill="#1c5e9a"/>
+                  </svg>
+                  <span className="text-[13px] font-medium text-[#1c5e9a] leading-[20px]">Viewing in document</span>
+                  <button
+                    type="button"
+                    onClick={onCloseDoc}
+                    aria-label="Close document"
+                    className="w-5 h-5 inline-flex items-center justify-center rounded-full text-[#1c5e9a] hover:bg-[#dceaf5]"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={()=>onViewInDoc({ row, col, data })}
+                  className="text-[14px] font-semibold text-[#1c212b] leading-[20px] tracking-[-0.28px] underline underline-offset-2 hover:text-[#2e846c]"
+                >
+                  View in document
+                </button>
+              )}
             </div>
           </div>
 
@@ -1945,6 +1963,12 @@
                   col={sourceCell?.col}
                   onClose={closeSource}
                   onViewInDoc={onViewInDoc}
+                  onCloseDoc={closeDoc}
+                  isDocOpen={
+                    !!docPreview && !!sourceCell &&
+                    docPreview.row.n === sourceCell.row.n &&
+                    docPreview.col.id === sourceCell.col.id
+                  }
                   initialMode={sourceCell?.mode || 'view'}
                 />
                 <CellActionMenu
