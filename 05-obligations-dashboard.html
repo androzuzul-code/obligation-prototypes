@@ -1062,166 +1062,303 @@
       const { kind, row } = payload;
       const slideClose = () => { setMounted(false); setTimeout(onClose, 200); };
 
-      const title = kind === 'obligation' ? row.name
-                  : kind === 'contract'   ? row.contract
-                                          : row.cparty;
-      const subtitle = kind === 'obligation'
-                  ? `OB-${(row.n * 31 + 1042).toString().padStart(6,'0')} · ${row.type} · Owned by Alex Avery`
-                  : kind === 'contract'
-                    ? `IC-${(row.n + 9200)} · ${row.contract.includes('SOW') ? 'Statement of Work' : 'Master Services Agreement'} · Owned by Anthony King · Executed Mar 14, 2024`
-                    : `ID-${(row.n + 660000)} · Vendor · 377 Washington Pl, San Francisco CA · Linked to Salesforce`;
-
-      const headerIcon = kind === 'obligation' ? (
-        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-          <path d={FIGMA_ICONS.obligation.path} transform={`translate(${FIGMA_ICONS.obligation.tx},${FIGMA_ICONS.obligation.ty})`} fill="#43474f"/>
-        </svg>
-      ) : kind === 'contract' ? (
-        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-          <path d={FIGMA_ICONS.contract.path} transform={`translate(${FIGMA_ICONS.contract.tx},${FIGMA_ICONS.contract.ty})`} fill="#43474f"/>
-        </svg>
-      ) : (
-        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-          <path d={FIGMA_ICONS.entity.path} transform={`translate(${FIGMA_ICONS.entity.tx},${FIGMA_ICONS.entity.ty})`} fill="#43474f"/>
+      const figmaIconFor = (k) => (
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+          <path d={FIGMA_ICONS[k].path} transform={`translate(${FIGMA_ICONS[k].tx},${FIGMA_ICONS[k].ty})`} fill="#1c212b"/>
         </svg>
       );
 
-      const Section = ({ title, children }) => (
-        <section className="px-6 py-5 border-b" style={{ borderColor: C.gray10 }}>
-          <h3 className="text-[16px] font-semibold text-[#1c212b] mb-3">{title}</h3>
-          {children}
-        </section>
+      // Small icon helpers
+      const ic = {
+        collapse: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4l4 4-4 4M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        expandFull: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        x: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
+        star: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.8l1.85 3.75 4.15.6-3 2.92.7 4.13L8 11.2 4.3 13.2l.7-4.13L2 6.15l4.15-.6L8 1.8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+        edit: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 13.5l3-.8L13 5.2l-2.2-2.2L3.3 10.5l-.8 3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+        trash: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4V3a1 1 0 011-1h1a1 1 0 011 1v1M5 4.5l.7 8.5a1.2 1.2 0 001.2 1.1h2.2a1.2 1.2 0 001.2-1.1L11 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        link: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="1.6" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="12" r="1.6" stroke="currentColor" strokeWidth="1.3"/><circle cx="4" cy="12" r="1.6" stroke="currentColor" strokeWidth="1.3"/><path d="M5.2 5.2l5.6 5.6M5.2 10.8l5.6-5.6" stroke="currentColor" strokeWidth="1.3"/></svg>,
+        people: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="6" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M2 13c.4-1.8 1.9-3 3.5-3s3.1 1.2 3.5 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="11" cy="6.5" r="1.6" stroke="currentColor" strokeWidth="1.3"/><path d="M9 12c.2-1.3 1.2-2 2.5-2s2.3.7 2.5 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+        viewTable: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M2 7h12M6 3v10" stroke="currentColor" strokeWidth="1.3"/></svg>,
+      };
+
+      const Avatar = ({ initials, bg='#c9d4e8' }) => (
+        <span className="inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-[#1c212b]" style={{ background: bg, width: 22, height: 22 }}>{initials}</span>
       );
 
-      // Body content per kind
-      let body;
+      let header, titleBlock, body;
+
+      // ============ OBLIGATION ============
       if (kind === 'obligation') {
+        const total = (row.progress && row.progress.total) || 8;
+        const done  = (row.progress && row.progress.done)  || 3;
+        const missed = row.status === 'Missed' ? 1 : 0;
+        const inprog = Math.max(0, Math.min(total - done - missed, 3));
+        const future = Math.max(0, total - done - missed - inprog);
+        const pct = (n) => `${(n / total) * 100}%`;
+
+        const associated = [
+          { label:'2027 Q1 Compliance Report', due:'May 5, 2026', status:'In-progress' },
+          { label:'2026 Q4 Compliance Report', due:'May 5, 2026', status:'In-progress' },
+          { label:'2026 Q3 Compliance Report', due:'May 5, 2026', status:'In-progress' },
+        ];
+
+        header = (
+          <div className="px-5 py-3 flex items-center gap-2">
+            <button onClick={slideClose} aria-label="Collapse" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.collapse}</button>
+            <button aria-label="Expand" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.expandFull}</button>
+            <div className="ml-auto inline-flex items-center gap-2">
+              <button className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-[13px] font-medium text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>{ic.edit} Edit</button>
+              <button className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-[13px] font-medium text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>{ic.trash} Delete</button>
+            </div>
+          </div>
+        );
+
+        titleBlock = (
+          <div className="px-6 pb-4 flex items-start gap-3">
+            <span className="shrink-0 w-10 h-10 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center">{figmaIconFor('obligation')}</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[20px] font-semibold text-[#1c212b] tracking-[-0.2px] leading-[26px] truncate">{row.name}</h2>
+              <p className="text-[12px] text-[#72757b] mt-1 truncate">OB {row.n} · Manually created Jan 21, 2024 by John Smith</p>
+            </div>
+          </div>
+        );
+
         body = (
-          <>
-            <Section title="Stage">
-              <div className="rounded-lg border p-4" style={{ borderColor: C.gray10 }}>
-                <div className="flex items-center gap-2 text-[12px] text-[#72757b] mb-2">
-                  <span>Created</span><span>›</span>
-                  <span className="text-[#1c212b] font-medium">{row.status === 'Fulfilled' ? 'Fulfilled' : 'In progress'}</span><span>›</span>
-                  <span className={row.status === 'Fulfilled' ? 'text-[#2e846c] font-medium' : ''}>{row.status === 'Fulfilled' ? 'Closed' : 'Closed'}</span>
-                </div>
-                <p className="text-[14px] text-[#1c212b]">{row.desc}</p>
-                {row.progress && row.cadence === 'Recurring' && (
-                  <div className="mt-4">
-                    <div className="text-[12px] text-[#72757b] mb-1.5">Progress · {row.progress.done}/{row.progress.total} fulfilled</div>
-                    <div className="h-1.5 rounded-full bg-[#e2e2e8] overflow-hidden">
-                      <div className="h-full rounded-full bg-[#2e846c]" style={{ width: `${Math.round((row.progress.done/row.progress.total)*100)}%` }} />
+          <div className="px-6 pb-8">
+            <p className="text-[14px] text-[#1c212b] leading-[20px] mb-5">{row.desc}</p>
+
+            {/* Parent contract card */}
+            <div className="text-[12px] text-[#72757b] mb-1.5">Parent contract</div>
+            <div className="rounded-lg border p-3 flex items-center gap-3 mb-5" style={{ borderColor: C.gray10 }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-[#1c212b]">Cloud Services Agreement</p>
+                <p className="text-[12px] text-[#72757b]">Ironclad ID: IC-1 | Record Type: 6420</p>
+              </div>
+              <span className="inline-flex items-center h-6 px-2.5 rounded-full text-[12px] font-medium" style={{ background:'#fde9b8', color:'#7a5b14' }}>Auto renewing</span>
+            </div>
+
+            {/* Label-right value rows */}
+            <dl className="text-[14px]">
+              <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: C.gray10 }}>
+                <dt className="text-[#43474f]">Type</dt>
+                <dd className="text-[#1c212b]">{row.type}</dd>
+              </div>
+              <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: C.gray10 }}>
+                <dt className="text-[#43474f]">Assignee</dt>
+                <dd className="inline-flex items-center gap-2 text-[#1c212b]">
+                  Nirnay Patel
+                  <span className="inline-flex items-center justify-center w-4 h-4">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 1.2v9.6" stroke="#bf6c19" strokeWidth="1.4" strokeLinecap="round"/><path d="M2.5 1.5h6.7l-1.1 2.2 1.1 2.2H2.5z" stroke="#bf6c19" strokeWidth="1.3" strokeLinejoin="round" fill="#ffe0b8"/></svg>
+                  </span>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: C.gray10 }}>
+                <dt className="text-[#43474f]">Entity</dt>
+                <dd>
+                  <EntityChip kind="entity" label="Counterparty name" />
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-3 border-b mb-5" style={{ borderColor: C.gray10 }}>
+                <dt className="text-[#43474f]">Cadence</dt>
+                <dd className="text-[#1c212b]">{row.cadence}</dd>
+              </div>
+            </dl>
+
+            {/* Multi-segment progress */}
+            <div className="rounded-lg p-4" style={{ background:'#f5f6f8' }}>
+              <p className="text-[12px] text-[#72757b] mb-2">Obligation progress</p>
+              <div className="flex h-2 rounded-full overflow-hidden bg-[#e2e2e8]">
+                <div style={{ width: pct(done),   background:'#2e846c' }} />
+                <div style={{ width: pct(missed), background:'#d14e38' }} />
+                <div style={{ width: pct(inprog), background:'#7eb4f0' }} />
+                <div style={{ width: pct(future), background:'#cbcccd' }} />
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-[12px] text-[#1c212b]">
+                <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background:'#2e846c' }} />{done} filled</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background:'#d14e38' }} />{missed} missed</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background:'#7eb4f0' }} />{inprog} in-progress</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background:'#cbcccd' }} />{future} future</span>
+              </div>
+              <button className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-[#1c212b]">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 7.5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Recurrence details
+              </button>
+            </div>
+
+            {/* Associated obligations */}
+            <div className="mt-7">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[18px] font-semibold text-[#1c212b]">Associated obligations</h3>
+                <button className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-[13px] text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>{ic.viewTable} View table</button>
+              </div>
+              <ul>
+                {associated.map((a, i) => (
+                  <li key={i} className="flex items-center gap-3 py-3 border-t" style={{ borderColor: C.gray10 }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-[#1c212b]">{a.label}</p>
+                      <p className="text-[12px] text-[#72757b] mt-0.5">Due {a.due}</p>
+                    </div>
+                    <Avatar initials="AA" />
+                    <Pill tone={statusPill(a.status)}>{a.status}</Pill>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        );
+
+      // ============ CONTRACT ============
+      } else if (kind === 'contract') {
+
+        header = (
+          <div className="px-5 py-3 flex items-center gap-2">
+            <button onClick={slideClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.x}</button>
+            <button aria-label="Favorite" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.star}</button>
+            <div className="ml-auto inline-flex items-center gap-2">
+              {/* Avatar stack + 9+ count */}
+              <span className="inline-flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
+                <span className="inline-flex">
+                  <Avatar initials="JS" bg="#c9d4e8" />
+                  <span className="-ml-1.5"><Avatar initials="MR" bg="#f0c4a3" /></span>
+                </span>
+                <span>9+</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
+                {ic.link} 4 contracts
+              </span>
+              <button className="inline-flex items-center justify-center h-8 px-4 rounded-full border text-[13px] font-medium text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>Open</button>
+            </div>
+          </div>
+        );
+
+        titleBlock = (
+          <div className="px-6 pb-4 flex items-start gap-3">
+            <span className="shrink-0 w-10 h-10 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center">{figmaIconFor('contract')}</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[20px] font-semibold text-[#1c212b] tracking-[-0.2px] leading-[26px] truncate">MSA with NexaTech Solutions</h2>
+              <p className="text-[12px] text-[#72757b] mt-1 truncate">ID-{(row.n + 660000)} · Owned by John Doe · Created Jun 7, 2024</p>
+            </div>
+          </div>
+        );
+
+        body = (
+          <div className="px-6 pb-8">
+            {/* Stage / workflow card */}
+            <div className="rounded-xl border p-5 mb-7" style={{ borderColor: C.gray10 }}>
+              <div className="flex items-center gap-2 text-[13px] text-[#72757b]">
+                <span>Create</span><span className="text-[#9e9ea5]">›</span>
+                <span className="font-semibold text-[#1c212b]">Review</span><span className="text-[#9e9ea5]">›</span>
+                <span>Sign</span><span className="text-[#9e9ea5]">›</span>
+                <span>Archive</span>
+              </div>
+              <h4 className="text-[16px] font-semibold text-[#1c212b] mt-4">It's time for you to review</h4>
+              <p className="text-[13px] text-[#43474f] mt-1.5 leading-[18px]">After everyone reviews and approves, the signature packet will be ready for both parties to sign.</p>
+              <button className="mt-3 flex items-center gap-2 w-full text-left rounded-md bg-[#f5f6f8] px-3 py-2 text-[13px] text-[#1c212b] hover:bg-[#edeef2]">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3l3 3-3 3" stroke="#43474f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Show instructions
+              </button>
+              <div className="mt-3 flex items-center gap-2 text-[13px] text-[#43474f]">
+                <span className="inline-flex">
+                  <Avatar initials="JS" bg="#c9d4e8" />
+                  <span className="-ml-1.5"><Avatar initials="MR" bg="#f0c4a3" /></span>
+                  <span className="-ml-1.5"><Avatar initials="KP" bg="#c0e3c4" /></span>
+                  <span className="-ml-1.5"><Avatar initials="NT" bg="#e8d4f0" /></span>
+                </span>
+                <span>1 of 4 people from your company approved</span>
+              </div>
+              <button className="mt-4 w-full h-11 rounded-md bg-[#2e846c] text-white text-[14px] font-semibold hover:opacity-90">Open workflow</button>
+            </div>
+
+            {/* Documents */}
+            <h3 className="text-[18px] font-semibold text-[#1c212b] mb-3">Documents</h3>
+            <div className="flex items-center gap-2 text-[14px] text-[#1c212b] mb-3">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12.5l3-1L11 5.5l-2-2-6 6-1 3z" stroke="#43474f" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+              <span className="font-medium">Signature packet</span>
+              <span className="text-[#72757b]">2</span>
+            </div>
+            <ul className="rounded-xl border overflow-hidden mb-4" style={{ borderColor: C.gray10 }}>
+              {[
+                { name: 'MSA with NexaTech Solutions Technologies.docx', meta:'Edited by Sammy Sales 2 hours ago', pills:['1 version'] },
+                { name: 'Order Form with NexaTech Solutions Technologies.do…', meta:'Edited by Sammy Sales 2 hours ago', pills:['1 version','Merged'] },
+              ].map((d, i, arr) => (
+                <li key={i} className={`flex items-center gap-3 p-3 ${i < arr.length-1 ? 'border-b' : ''}`} style={{ borderColor: C.gray10 }}>
+                  <span className="shrink-0 w-12 h-14 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center" style={{ border:`1px solid ${C.gray10}` }}>
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1" stroke="#43474f" strokeWidth="1.3"/><path d="M5 5h6M5 7.5h6M5 10h4" stroke="#43474f" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-[#1c212b] truncate">{d.name}</p>
+                    <p className="text-[12px] text-[#72757b] mt-0.5">{d.meta}</p>
+                    <div className="flex gap-1.5 mt-2">
+                      {d.pills.map(p => <span key={p} className="inline-flex items-center h-5 px-2 rounded-full bg-[#f5f6f8] text-[11px] text-[#43474f]">{p}</span>)}
                     </div>
                   </div>
-                )}
-              </div>
-            </Section>
-            <Section title="Details">
-              <dl className="grid grid-cols-2 gap-y-3 gap-x-6 text-[14px]">
-                <div><dt className="text-[12px] text-[#72757b]">Counterparty</dt><dd className="text-[#1c212b] mt-0.5">{row.cparty}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Contract</dt><dd className="text-[#1c212b] mt-0.5">{row.contract}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Cadence</dt><dd className="text-[#1c212b] mt-0.5">{row.cadence}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Next due</dt><dd className="text-[#1c212b] mt-0.5">{row.due}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Type</dt><dd className="text-[#1c212b] mt-0.5">{row.type}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Responsibility</dt><dd className="text-[#1c212b] mt-0.5">{row.resp}</dd></div>
-              </dl>
-            </Section>
-            <Section title="Source clause">
-              <div className="rounded-md p-3 bg-[#f5f6f8]">
-                <p className="text-[14px] italic text-[#1c212b]">"{row.desc}"</p>
-                <p className="text-[12px] text-[#72757b] mt-2">From {row.contract}.pdf · Section {(row.n % 12) + 3}.{(row.n % 5) + 1}</p>
-              </div>
-            </Section>
-            <Section title="Activity">
-              <ul className="space-y-3 text-[13px]">
-                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">2 days ago</span><span className="text-[#1c212b]">Reassigned to Alex Avery by Anthony King</span></li>
-                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">Apr 2, 2026</span><span className="text-[#1c212b]">Status changed to {row.status}</span></li>
-                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">Mar 14, 2024</span><span className="text-[#1c212b]">Extracted by Intake Agent at archive</span></li>
-              </ul>
-            </Section>
-          </>
-        );
-      } else if (kind === 'contract') {
-        body = (
-          <>
-            <Section title="Stage">
-              <div className="rounded-lg border p-4" style={{ borderColor: C.gray10 }}>
-                <div className="flex items-center gap-2 text-[12px] text-[#72757b]">
-                  <span>Create</span><span>›</span>
-                  <span>Review</span><span>›</span>
-                  <span>Sign</span><span>›</span>
-                  <span className="text-[#1c212b] font-medium">Archive</span>
-                </div>
-                <p className="text-[14px] text-[#1c212b] mt-3">Executed and archived. Active obligations tracked under this record.</p>
-              </div>
-            </Section>
-            <Section title="Documents">
-              <ul className="space-y-2">
-                {[
-                  { name: `${row.contract}.pdf`, meta:'Signed Mar 14, 2024 · 1 version', icon:'pdf' },
-                  { name: `${row.contract} — Amendment 1.pdf`, meta:'Signed Aug 22, 2024 · 1 version', icon:'pdf' },
-                ].map((d, i) => (
-                  <li key={i} className="rounded-lg border p-3 flex items-center gap-3" style={{ borderColor: C.gray10 }}>
-                    <span className="w-9 h-9 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5v-13z M9 1.5V5h4" stroke="#43474f" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></svg></span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-[#1c212b] truncate">{d.name}</p>
-                      <p className="text-[12px] text-[#72757b]">{d.meta}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-            <Section title="Obligations">
-              <p className="text-[13px] text-[#72757b]">12 active · 4 fulfilled · 1 missed</p>
-            </Section>
-            <Section title="Properties">
-              <dl className="grid grid-cols-2 gap-y-3 gap-x-6 text-[14px]">
-                <div><dt className="text-[12px] text-[#72757b]">Counterparty</dt><dd className="text-[#1c212b] mt-0.5">{row.cparty}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Effective</dt><dd className="text-[#1c212b] mt-0.5">Mar 14, 2024</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Expires</dt><dd className="text-[#1c212b] mt-0.5">{row.due}</dd></div>
-                <div><dt className="text-[12px] text-[#72757b]">Owner</dt><dd className="text-[#1c212b] mt-0.5">Anthony King</dd></div>
-              </dl>
-            </Section>
-          </>
-        );
-      } else { // entity
-        body = (
-          <>
-            <Section title="About">
-              <p className="text-[14px] text-[#1c212b]">SaaS vendor headquartered in San Francisco. Linked to Salesforce account ID-{row.n + 660000}.</p>
-            </Section>
-            <Section title="Contracts">
-              <ul className="space-y-2">
-                {[
-                  { name:'Master Services Agreement', meta:'IC-3001 · Executed Mar 14, 2024' },
-                  { name:`${row.contract}`, meta:`IC-${row.n+9200} · Active` },
-                  { name:'Order Form #4', meta:'IC-3042 · Active' },
-                ].map((c, i) => (
-                  <li key={i} className="rounded-lg border p-3 flex items-center gap-3" style={{ borderColor: C.gray10 }}>
-                    <span className="w-9 h-9 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5v-13z M9 1.5V5h4" stroke="#43474f" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></svg></span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-[#1c212b] truncate">{c.name}</p>
-                      <p className="text-[12px] text-[#72757b]">{c.meta}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-            <Section title="Contacts">
-              <ul className="space-y-3 text-[13px]">
-                <li className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#c9d4e8] inline-flex items-center justify-center text-[12px] font-semibold text-[#1c212b]">JA</span>
-                  <div className="flex-1"><p className="text-[#1c212b]">John Acme</p><p className="text-[12px] text-[#72757b]">Director, Strategic Sourcing · john@{row.cparty.toLowerCase().split(' ')[0]}.com</p></div>
                 </li>
-                <li className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#f0c4a3] inline-flex items-center justify-center text-[12px] font-semibold text-[#1c212b]">MR</span>
-                  <div className="flex-1"><p className="text-[#1c212b]">Maya Reyes</p><p className="text-[12px] text-[#72757b]">Account Executive</p></div>
-                </li>
-              </ul>
-            </Section>
-            <Section title="Active obligations">
-              <p className="text-[13px] text-[#72757b]">8 obligations from {row.cparty} are tracked across 3 contracts.</p>
-            </Section>
-          </>
+              ))}
+            </ul>
+
+            <button className="flex items-center gap-2 text-[13px] text-[#1c212b]">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#43474f" strokeWidth="1.3"/><path d="M3 11l8-8" stroke="#43474f" strokeWidth="1.3"/></svg>
+              Excluded from signature packet
+              <span className="text-[#72757b] ml-1">1</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5l3 3 3-3" stroke="#43474f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+
+            <div className="mt-7">
+              <h3 className="text-[18px] font-semibold text-[#1c212b]">Properties</h3>
+              <p className="text-[12px] text-[#72757b] mt-1">Updated 4 hours ago</p>
+            </div>
+          </div>
+        );
+
+      // ============ ENTITY ============
+      } else {
+
+        header = (
+          <div className="px-5 py-3 flex items-center gap-2">
+            <button onClick={slideClose} aria-label="Collapse" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.collapse}</button>
+            <button aria-label="Expand" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.expandFull}</button>
+            <div className="ml-auto inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
+                {ic.link} 4 contracts
+              </span>
+              <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
+                {ic.people} 1
+              </span>
+              <button aria-label="Favorite" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">{ic.star}</button>
+            </div>
+          </div>
+        );
+
+        titleBlock = (
+          <div className="px-6 pb-4 flex items-start gap-3">
+            <span className="shrink-0 w-10 h-10 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center">{figmaIconFor('entity')}</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[20px] font-semibold text-[#1c212b] tracking-[-0.2px] leading-[26px] truncate">{row.cparty}</h2>
+              <p className="text-[12px] text-[#72757b] mt-1 truncate uppercase tracking-wider">ENTITY-{row.n} · Created on Jan 21, 2026</p>
+            </div>
+          </div>
+        );
+
+        const fields = [
+          { label:'Relationship',     value:'Vendor, Customer' },
+          { label:'Business type',    value:'Company' },
+          { label:'Category',         value:'External' },
+          { label:'Legal name',       value:`${row.cparty}, Inc.` },
+          { label:'Address',          value:'1 Hacker Way, Menlo Park, CA, 94025, USA' },
+          { label:'Point of contact', value:'—' },
+          { label:'Vendor Type',      value:'Software' },
+          { label:'Internal department', value:'Marketing' },
+        ];
+
+        body = (
+          <div className="px-6 pb-8">
+            {fields.map((f, i) => (
+              <div key={i} className="mb-5">
+                <p className="text-[12px] text-[#72757b] mb-0.5">{f.label}</p>
+                <p className="text-[14px] font-semibold text-[#1c212b] leading-[20px]">{f.value}</p>
+              </div>
+            ))}
+          </div>
         );
       }
 
@@ -1229,43 +1366,15 @@
         <div
           className="fixed top-0 right-0 bottom-0 z-50 bg-white flex flex-col"
           style={{
-            width: 500,
+            width: kind === 'obligation' ? 524 : kind === 'entity' ? 492 : 500,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
             transition: 'transform .22s ease-out',
             borderLeft: `1px solid ${C.gray10}`,
-            boxShadow: '-12px 0 32px rgba(28,33,43,0.14)',
+            boxShadow: '-12px 0 32px rgba(28,33,43,0.10)',
           }}
         >
-          {/* Header strip */}
-          <div className="px-5 py-3 border-b flex items-center gap-2" style={{ borderColor: C.gray10 }}>
-            <button onClick={slideClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            </button>
-            <button aria-label="Favorite" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.8l1.85 3.75 4.15.6-3 2.92.7 4.13L8 11.2 4.3 13.2l.7-4.13L2 6.15l4.15-.6L8 1.8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
-            </button>
-            <div className="ml-auto inline-flex items-center gap-2">
-              {kind === 'contract' && (
-                <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
-                  <span className="w-2 h-2 rounded-full bg-[#2e846c]" /> Active
-                </span>
-              )}
-              <button className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border text-[13px] font-medium text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>
-                Open
-              </button>
-            </div>
-          </div>
-
-          {/* Title row */}
-          <div className="px-6 py-4 border-b flex items-start gap-3" style={{ borderColor: C.gray10 }}>
-            <span className="shrink-0 w-10 h-10 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center">{headerIcon}</span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[20px] font-semibold text-[#1c212b] tracking-[-0.2px] leading-[26px] truncate">{title}</h2>
-              <p className="text-[12px] text-[#72757b] mt-1 truncate">{subtitle}</p>
-            </div>
-          </div>
-
-          {/* Scrolling body */}
+          {header}
+          {titleBlock}
           <div className="flex-1 overflow-y-auto">{body}</div>
         </div>
       );
