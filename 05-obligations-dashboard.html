@@ -1364,12 +1364,14 @@
 
       return (
         <div
-          className="fixed top-0 right-0 bottom-0 z-50 bg-white flex flex-col"
+          className="fixed right-0 bottom-0 z-50 bg-white flex flex-col"
           style={{
+            top: 50, // sit just below the global nav bar
             width: kind === 'obligation' ? 524 : kind === 'entity' ? 492 : 500,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
             transition: 'transform .22s ease-out',
             borderLeft: `1px solid ${C.gray10}`,
+            borderTop: `1px solid ${C.gray10}`,
             boxShadow: '-12px 0 32px rgba(28,33,43,0.10)',
           }}
         >
