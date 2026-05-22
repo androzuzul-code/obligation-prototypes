@@ -104,18 +104,23 @@
 
     /* Small entity chip used for Name / Contract / Counterparty cells.
      * Uses the actual icons pulled from the Figma component. */
-    function EntityChip({ label, kind }) {
+    function EntityChip({ label, kind, onClick }) {
       const ic = FIGMA_ICONS[kind] || FIGMA_ICONS.contract;
       const weightCls = kind === 'obligation' ? 'font-semibold' : 'font-normal';
+      const handle = onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined;
       return (
-        <span className="inline-flex items-center gap-1.5 pl-1.5 pr-2 h-[24px] rounded-[4px] bg-[#f5f6f8] hover:bg-[#d4d6dc] transition-colors text-[13px] text-[#1c212b] max-w-full">
+        <button
+          type="button"
+          onClick={handle}
+          className="inline-flex items-center gap-1.5 pl-1.5 pr-2 h-[24px] rounded-[4px] bg-[#f5f6f8] hover:bg-[#d4d6dc] transition-colors text-[13px] text-[#1c212b] max-w-full cursor-pointer"
+        >
           <span className="shrink-0">
             <svg width="14" height="14" viewBox={ic.viewBox} fill="none">
               <path d={ic.path} transform={`translate(${ic.tx},${ic.ty})`} fill="#43474f" />
             </svg>
           </span>
           <span className={`truncate ${weightCls}`}>{label}</span>
-        </span>
+        </button>
       );
     }
 
@@ -1043,6 +1048,229 @@
       );
     }
 
+    /* Object detail side panel — opens when user clicks an entity pill.
+     * Three variants by `kind` (obligation / contract / entity).
+     * No scrim — rest of the page stays interactive. */
+    function ObjectPanel({ payload, onClose }) {
+      const [mounted, setMounted] = useState(false);
+      useEffect(() => {
+        if (!payload) return;
+        const raf = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(raf);
+      }, [payload]);
+      if (!payload) return null;
+      const { kind, row } = payload;
+      const slideClose = () => { setMounted(false); setTimeout(onClose, 200); };
+
+      const title = kind === 'obligation' ? row.name
+                  : kind === 'contract'   ? row.contract
+                                          : row.cparty;
+      const subtitle = kind === 'obligation'
+                  ? `OB-${(row.n * 31 + 1042).toString().padStart(6,'0')} · ${row.type} · Owned by Alex Avery`
+                  : kind === 'contract'
+                    ? `IC-${(row.n + 9200)} · ${row.contract.includes('SOW') ? 'Statement of Work' : 'Master Services Agreement'} · Owned by Anthony King · Executed Mar 14, 2024`
+                    : `ID-${(row.n + 660000)} · Vendor · 377 Washington Pl, San Francisco CA · Linked to Salesforce`;
+
+      const headerIcon = kind === 'obligation' ? (
+        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+          <path d={FIGMA_ICONS.obligation.path} transform={`translate(${FIGMA_ICONS.obligation.tx},${FIGMA_ICONS.obligation.ty})`} fill="#43474f"/>
+        </svg>
+      ) : kind === 'contract' ? (
+        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+          <path d={FIGMA_ICONS.contract.path} transform={`translate(${FIGMA_ICONS.contract.tx},${FIGMA_ICONS.contract.ty})`} fill="#43474f"/>
+        </svg>
+      ) : (
+        <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+          <path d={FIGMA_ICONS.entity.path} transform={`translate(${FIGMA_ICONS.entity.tx},${FIGMA_ICONS.entity.ty})`} fill="#43474f"/>
+        </svg>
+      );
+
+      const Section = ({ title, children }) => (
+        <section className="px-6 py-5 border-b" style={{ borderColor: C.gray10 }}>
+          <h3 className="text-[16px] font-semibold text-[#1c212b] mb-3">{title}</h3>
+          {children}
+        </section>
+      );
+
+      // Body content per kind
+      let body;
+      if (kind === 'obligation') {
+        body = (
+          <>
+            <Section title="Stage">
+              <div className="rounded-lg border p-4" style={{ borderColor: C.gray10 }}>
+                <div className="flex items-center gap-2 text-[12px] text-[#72757b] mb-2">
+                  <span>Created</span><span>›</span>
+                  <span className="text-[#1c212b] font-medium">{row.status === 'Fulfilled' ? 'Fulfilled' : 'In progress'}</span><span>›</span>
+                  <span className={row.status === 'Fulfilled' ? 'text-[#2e846c] font-medium' : ''}>{row.status === 'Fulfilled' ? 'Closed' : 'Closed'}</span>
+                </div>
+                <p className="text-[14px] text-[#1c212b]">{row.desc}</p>
+                {row.progress && row.cadence === 'Recurring' && (
+                  <div className="mt-4">
+                    <div className="text-[12px] text-[#72757b] mb-1.5">Progress · {row.progress.done}/{row.progress.total} fulfilled</div>
+                    <div className="h-1.5 rounded-full bg-[#e2e2e8] overflow-hidden">
+                      <div className="h-full rounded-full bg-[#2e846c]" style={{ width: `${Math.round((row.progress.done/row.progress.total)*100)}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Section>
+            <Section title="Details">
+              <dl className="grid grid-cols-2 gap-y-3 gap-x-6 text-[14px]">
+                <div><dt className="text-[12px] text-[#72757b]">Counterparty</dt><dd className="text-[#1c212b] mt-0.5">{row.cparty}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Contract</dt><dd className="text-[#1c212b] mt-0.5">{row.contract}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Cadence</dt><dd className="text-[#1c212b] mt-0.5">{row.cadence}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Next due</dt><dd className="text-[#1c212b] mt-0.5">{row.due}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Type</dt><dd className="text-[#1c212b] mt-0.5">{row.type}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Responsibility</dt><dd className="text-[#1c212b] mt-0.5">{row.resp}</dd></div>
+              </dl>
+            </Section>
+            <Section title="Source clause">
+              <div className="rounded-md p-3 bg-[#f5f6f8]">
+                <p className="text-[14px] italic text-[#1c212b]">"{row.desc}"</p>
+                <p className="text-[12px] text-[#72757b] mt-2">From {row.contract}.pdf · Section {(row.n % 12) + 3}.{(row.n % 5) + 1}</p>
+              </div>
+            </Section>
+            <Section title="Activity">
+              <ul className="space-y-3 text-[13px]">
+                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">2 days ago</span><span className="text-[#1c212b]">Reassigned to Alex Avery by Anthony King</span></li>
+                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">Apr 2, 2026</span><span className="text-[#1c212b]">Status changed to {row.status}</span></li>
+                <li className="flex gap-3"><span className="text-[#72757b] tabular-nums w-20 shrink-0">Mar 14, 2024</span><span className="text-[#1c212b]">Extracted by Intake Agent at archive</span></li>
+              </ul>
+            </Section>
+          </>
+        );
+      } else if (kind === 'contract') {
+        body = (
+          <>
+            <Section title="Stage">
+              <div className="rounded-lg border p-4" style={{ borderColor: C.gray10 }}>
+                <div className="flex items-center gap-2 text-[12px] text-[#72757b]">
+                  <span>Create</span><span>›</span>
+                  <span>Review</span><span>›</span>
+                  <span>Sign</span><span>›</span>
+                  <span className="text-[#1c212b] font-medium">Archive</span>
+                </div>
+                <p className="text-[14px] text-[#1c212b] mt-3">Executed and archived. Active obligations tracked under this record.</p>
+              </div>
+            </Section>
+            <Section title="Documents">
+              <ul className="space-y-2">
+                {[
+                  { name: `${row.contract}.pdf`, meta:'Signed Mar 14, 2024 · 1 version', icon:'pdf' },
+                  { name: `${row.contract} — Amendment 1.pdf`, meta:'Signed Aug 22, 2024 · 1 version', icon:'pdf' },
+                ].map((d, i) => (
+                  <li key={i} className="rounded-lg border p-3 flex items-center gap-3" style={{ borderColor: C.gray10 }}>
+                    <span className="w-9 h-9 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5v-13z M9 1.5V5h4" stroke="#43474f" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></svg></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-[#1c212b] truncate">{d.name}</p>
+                      <p className="text-[12px] text-[#72757b]">{d.meta}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            <Section title="Obligations">
+              <p className="text-[13px] text-[#72757b]">12 active · 4 fulfilled · 1 missed</p>
+            </Section>
+            <Section title="Properties">
+              <dl className="grid grid-cols-2 gap-y-3 gap-x-6 text-[14px]">
+                <div><dt className="text-[12px] text-[#72757b]">Counterparty</dt><dd className="text-[#1c212b] mt-0.5">{row.cparty}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Effective</dt><dd className="text-[#1c212b] mt-0.5">Mar 14, 2024</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Expires</dt><dd className="text-[#1c212b] mt-0.5">{row.due}</dd></div>
+                <div><dt className="text-[12px] text-[#72757b]">Owner</dt><dd className="text-[#1c212b] mt-0.5">Anthony King</dd></div>
+              </dl>
+            </Section>
+          </>
+        );
+      } else { // entity
+        body = (
+          <>
+            <Section title="About">
+              <p className="text-[14px] text-[#1c212b]">SaaS vendor headquartered in San Francisco. Linked to Salesforce account ID-{row.n + 660000}.</p>
+            </Section>
+            <Section title="Contracts">
+              <ul className="space-y-2">
+                {[
+                  { name:'Master Services Agreement', meta:'IC-3001 · Executed Mar 14, 2024' },
+                  { name:`${row.contract}`, meta:`IC-${row.n+9200} · Active` },
+                  { name:'Order Form #4', meta:'IC-3042 · Active' },
+                ].map((c, i) => (
+                  <li key={i} className="rounded-lg border p-3 flex items-center gap-3" style={{ borderColor: C.gray10 }}>
+                    <span className="w-9 h-9 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 1.5h6L13 5v9.5H3.5v-13z M9 1.5V5h4" stroke="#43474f" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></svg></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-[#1c212b] truncate">{c.name}</p>
+                      <p className="text-[12px] text-[#72757b]">{c.meta}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            <Section title="Contacts">
+              <ul className="space-y-3 text-[13px]">
+                <li className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[#c9d4e8] inline-flex items-center justify-center text-[12px] font-semibold text-[#1c212b]">JA</span>
+                  <div className="flex-1"><p className="text-[#1c212b]">John Acme</p><p className="text-[12px] text-[#72757b]">Director, Strategic Sourcing · john@{row.cparty.toLowerCase().split(' ')[0]}.com</p></div>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[#f0c4a3] inline-flex items-center justify-center text-[12px] font-semibold text-[#1c212b]">MR</span>
+                  <div className="flex-1"><p className="text-[#1c212b]">Maya Reyes</p><p className="text-[12px] text-[#72757b]">Account Executive</p></div>
+                </li>
+              </ul>
+            </Section>
+            <Section title="Active obligations">
+              <p className="text-[13px] text-[#72757b]">8 obligations from {row.cparty} are tracked across 3 contracts.</p>
+            </Section>
+          </>
+        );
+      }
+
+      return (
+        <div
+          className="fixed top-0 right-0 bottom-0 z-50 bg-white flex flex-col"
+          style={{
+            width: 500,
+            transform: mounted ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform .22s ease-out',
+            borderLeft: `1px solid ${C.gray10}`,
+            boxShadow: '-12px 0 32px rgba(28,33,43,0.14)',
+          }}
+        >
+          {/* Header strip */}
+          <div className="px-5 py-3 border-b flex items-center gap-2" style={{ borderColor: C.gray10 }}>
+            <button onClick={slideClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
+            <button aria-label="Favorite" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#f5f6f8]">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.8l1.85 3.75 4.15.6-3 2.92.7 4.13L8 11.2 4.3 13.2l.7-4.13L2 6.15l4.15-.6L8 1.8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+            </button>
+            <div className="ml-auto inline-flex items-center gap-2">
+              {kind === 'contract' && (
+                <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border bg-white text-[13px] font-medium text-[#1c212b]" style={{ borderColor: C.gray10 }}>
+                  <span className="w-2 h-2 rounded-full bg-[#2e846c]" /> Active
+                </span>
+              )}
+              <button className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border text-[13px] font-medium text-[#1c212b] hover:bg-[#f5f6f8]" style={{ borderColor: C.gray10 }}>
+                Open
+              </button>
+            </div>
+          </div>
+
+          {/* Title row */}
+          <div className="px-6 py-4 border-b flex items-start gap-3" style={{ borderColor: C.gray10 }}>
+            <span className="shrink-0 w-10 h-10 rounded-md bg-[#f5f6f8] inline-flex items-center justify-center">{headerIcon}</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[20px] font-semibold text-[#1c212b] tracking-[-0.2px] leading-[26px] truncate">{title}</h2>
+              <p className="text-[12px] text-[#72757b] mt-1 truncate">{subtitle}</p>
+            </div>
+          </div>
+
+          {/* Scrolling body */}
+          <div className="flex-1 overflow-y-auto">{body}</div>
+        </div>
+      );
+    }
+
     function ContextSwitcher({ value, onChange }) {
       const opts = [
         { id:'list', label:'List',
@@ -1383,7 +1611,7 @@
       );
     }
 
-    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell, cellsClickable }) {
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell, cellsClickable, onPillClick }) {
 
       const cellFor = (id, r) => {
         switch(id) {
@@ -1402,11 +1630,11 @@
               </span>
             );
           }
-          case 'name':     return <EntityChip kind="obligation" label={r.name} />;
-          case 'contract': return <EntityChip kind="contract" label={r.contract} />;
+          case 'name':     return <EntityChip kind="obligation" label={r.name}     onClick={onPillClick ? () => onPillClick({ kind:'obligation', row:r }) : undefined} />;
+          case 'contract': return <EntityChip kind="contract"   label={r.contract} onClick={onPillClick ? () => onPillClick({ kind:'contract',   row:r }) : undefined} />;
           case 'desc':     return <span className="text-[13px] text-[#43474f] block truncate" title={r.desc}>{r.desc}</span>;
           case 'status':   return <Pill tone={statusPill(r.status)}>{r.status}</Pill>;
-          case 'cparty':   return <EntityChip kind="entity" label={r.cparty} />;
+          case 'cparty':   return <EntityChip kind="entity"     label={r.cparty}   onClick={onPillClick ? () => onPillClick({ kind:'entity',     row:r }) : undefined} />;
           case 'type':     return <span className="text-[13px] text-[#43474f] block truncate">{r.type}</span>;
           case 'resp':     return <span className="text-[13px] text-[#43474f]">{r.resp}</span>;
           case 'cadence':  return <Pill tone={cadencePill(r.cadence)}>{r.cadence}</Pill>;
@@ -1818,6 +2046,11 @@
           console.log('cell action', actionId, earMenu.row?.n, earMenu.col?.id);
         }
       }, [earMenu]);
+
+      // Object detail side panel (Obligation / Contract / Entity)
+      const [objectPanel, setObjectPanel] = useState(null); // { kind, row }
+      const onPillClick = useCallback((payload) => setObjectPanel(payload), []);
+      const closeObjectPanel = useCallback(() => setObjectPanel(null), []);
 
       // Document preview slideout
       const [docPreview, setDocPreview] = useState(null); // { row, col, data }
@@ -2275,6 +2508,7 @@
                     onEarClick={onEarClick}
                     earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
                     cellsClickable={!!tableSettings.showSourceOnClick}
+                    onPillClick={onPillClick}
                   />
                 </div>
                 <SourcePopover
@@ -2306,6 +2540,7 @@
             onClear={()=>setSelected(new Set())}
             onAction={(id)=>console.log('bulk action', id, [...selected])}
           />
+          <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} />
         </div>
       );
     }
