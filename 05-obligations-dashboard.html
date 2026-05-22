@@ -444,6 +444,7 @@
       );
       if (def.kind === 'textarea') return (
         <textarea
+          autoFocus
           className={cls + ' h-24 py-2 resize-none'}
           value={value}
           onChange={e=>onChange(e.target.value)}
@@ -454,29 +455,29 @@
       if (def.kind === 'select') {
         const opts = typeof def.options === 'function' ? def.options() : def.options;
         return (
-          <select className={cls + ' appearance-none pr-8'} value={value || ''} onChange={e=>onChange(e.target.value)} style={style}>
+          <select autoFocus className={cls + ' appearance-none pr-8'} value={value || ''} onChange={e=>onChange(e.target.value)} style={style}>
             {!opts.includes(value) && <option value={value}>{value}</option>}
             {opts.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         );
       }
       if (def.kind === 'number' || def.kind === 'percent') return (
-        <input type="number" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} style={style} />
+        <input autoFocus type="number" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} style={style} />
       );
       if (def.kind === 'currency') return (
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#72757b] text-[14px]">$</span>
-          <input type="text" className={cls + ' pl-7'} value={String(value || '').replace(/^\$/, '')} onChange={e=>onChange('$' + e.target.value)} style={style} />
+          <input autoFocus type="text" className={cls + ' pl-7'} value={String(value || '').replace(/^\$/, '')} onChange={e=>onChange('$' + e.target.value)} style={style} />
         </div>
       );
       if (def.kind === 'date') return (
-        <input type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder="e.g., Apr 4, 2026" style={style} />
+        <input autoFocus type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder="e.g., Apr 4, 2026" style={style} />
       );
       if (def.kind === 'progress') return (
-        <input type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder="e.g., 3/12" style={style} />
+        <input autoFocus type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder="e.g., 3/12" style={style} />
       );
       return (
-        <input type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder={def.placeholder} style={style} />
+        <input autoFocus type="text" className={cls} value={value || ''} onChange={e=>onChange(e.target.value)} placeholder={def.placeholder} style={style} />
       );
     }
 
@@ -560,6 +561,19 @@
       useEffect(() => {
         setDraggedPos(null);
       }, [col?.id]);
+
+      // Enter while in view mode → switch into edit (input auto-focuses)
+      useEffect(() => {
+        if (!anchorRect || mode !== 'view') return;
+        const onKey = (e) => {
+          if (e.key !== 'Enter') return;
+          if (e.target && e.target.closest && e.target.closest('input, textarea, select, button, a')) return;
+          e.preventDefault();
+          setMode('edit');
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [anchorRect, mode]);
 
       const onMouseDownDrag = useCallback((e) => {
         // Don't start a drag on any interactive control
