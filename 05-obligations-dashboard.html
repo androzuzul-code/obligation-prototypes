@@ -562,18 +562,21 @@
         setDraggedPos(null);
       }, [col?.id]);
 
-      // Enter while in view mode → switch into edit (input auto-focuses)
+      // Auto-focus the View-in-document button (or Edit value for manual /
+      // doc-open cases) when the card opens in view mode. Lets the user
+      // press Enter to open the doc, or Tab to reach Edit value.
+      const viewDocBtnRef = useRef(null);
+      const manualEditBtnRef = useRef(null);
+      const viewingDocCloseRef = useRef(null);
       useEffect(() => {
-        if (!anchorRect || mode !== 'view') return;
-        const onKey = (e) => {
-          if (e.key !== 'Enter') return;
-          if (e.target && e.target.closest && e.target.closest('input, textarea, select, button, a')) return;
-          e.preventDefault();
-          setMode('edit');
-        };
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-      }, [anchorRect, mode]);
+        if (mode !== 'view') return;
+        const t = setTimeout(() => {
+          if (viewDocBtnRef.current) viewDocBtnRef.current.focus();
+          else if (manualEditBtnRef.current) manualEditBtnRef.current.focus();
+          else if (viewingDocCloseRef.current) viewingDocCloseRef.current.focus();
+        }, 0);
+        return () => clearTimeout(t);
+      }, [mode, row?.n, col?.id, isDocOpen]);
 
       const onMouseDownDrag = useCallback((e) => {
         // Don't start a drag on any interactive control
@@ -708,8 +711,9 @@
             </p>
             <div className="flex items-center justify-end">
               <button
+                ref={manualEditBtnRef}
                 onClick={()=>setMode('edit')}
-                className="bg-white border border-[#1c212b] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#f5f6f8]"
+                className="bg-white border border-[#1c212b] flex items-center justify-center pl-4 pr-3 py-2 rounded-lg hover:bg-[#f5f6f8] focus:outline-none focus:ring-2 focus:ring-[#1c212b] focus:ring-offset-2"
               >
                 <span className="text-[12px] font-semibold text-[#1c212b] leading-[16px] tracking-[-0.24px] pr-1">Edit value</span>
               </button>
@@ -758,18 +762,20 @@
                   </svg>
                   <span>Viewing in document</span>
                   <button
+                    ref={viewingDocCloseRef}
                     type="button"
                     onClick={onCloseDoc}
                     aria-label="Close document"
-                    className="w-5 h-5 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#dceaf5] hover:text-[#1c212b]"
+                    className="w-5 h-5 inline-flex items-center justify-center rounded-md text-[#43474f] hover:bg-[#dceaf5] hover:text-[#1c212b] focus:outline-none focus:ring-2 focus:ring-[#1c212b] focus:ring-offset-1"
                   >
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   </button>
                 </span>
               ) : (
                 <button
+                  ref={viewDocBtnRef}
                   onClick={()=>onViewInDoc({ row, col, data })}
-                  className="text-[14px] font-semibold text-[#1c212b] leading-[20px] tracking-[-0.28px] underline underline-offset-2 hover:text-[#2e846c]"
+                  className="text-[14px] font-semibold text-[#1c212b] leading-[20px] tracking-[-0.28px] underline underline-offset-2 hover:text-[#2e846c] focus:outline-none focus:ring-2 focus:ring-[#1c212b] focus:ring-offset-2 rounded-sm"
                 >
                   View in document
                 </button>
