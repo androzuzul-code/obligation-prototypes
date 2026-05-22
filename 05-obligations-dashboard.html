@@ -939,6 +939,59 @@
       );
     }
 
+    /* Floating action bar shown when one or more rows are selected */
+    function SelectionActionBar({ count, onClear, onAction }) {
+      if (count === 0) return null;
+      const s = "1.4";
+      const ic = {
+        export:    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3.5 9.5v2.5a1 1 0 001 1h7a1 1 0 001-1V9.5M8 2v8M5 4.5L8 1.5l3 3" stroke="currentColor" strokeWidth={s} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        reassign:  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="6" r="2" stroke="currentColor" strokeWidth={s}/><path d="M2 13c.4-1.8 1.9-3 3.5-3s3.1 1.2 3.5 3" stroke="currentColor" strokeWidth={s} strokeLinecap="round"/><circle cx="11.5" cy="6" r="1.5" stroke="currentColor" strokeWidth={s}/><path d="M9 12c.2-1.3 1.2-2 2.5-2s2.3.7 2.5 2" stroke="currentColor" strokeWidth={s} strokeLinecap="round"/></svg>,
+        status:    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 018.7-3.4M13 8a5 5 0 01-8.7 3.4" stroke="currentColor" strokeWidth={s} strokeLinecap="round"/><path d="M11 2.5v2.5h-2M5 13.5V11h2" stroke="currentColor" strokeWidth={s} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        edit:      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 13.5l3-.8L13 5.2l-2.2-2.2L3.3 10.5l-.8 3z" stroke="currentColor" strokeWidth={s} strokeLinejoin="round"/></svg>,
+        reminders: <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 7a4 4 0 118 0v3l1.5 2H2.5L4 10V7z" stroke="currentColor" strokeWidth={s} strokeLinejoin="round"/><path d="M6.5 13.5a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth={s} strokeLinecap="round"/></svg>,
+        download:  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 13.5h10" stroke="currentColor" strokeWidth={s} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        del:       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4V3a1 1 0 011-1h1a1 1 0 011 1v1M5 4.5l.7 8.5a1.2 1.2 0 001.2 1.1h2.2a1.2 1.2 0 001.2-1.1L11 4.5" stroke="currentColor" strokeWidth={s} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      };
+      const actions = [
+        { id:'export',    label:'Export',            icon: ic.export },
+        { id:'reassign',  label:'Reassign',          icon: ic.reassign },
+        { id:'status',    label:'Change status',     icon: ic.status },
+        { id:'edit',      label:'Edit',              icon: ic.edit },
+        { id:'reminders', label:'Extract reminders', icon: ic.reminders },
+        { id:'download',  label:'Download',          icon: ic.download },
+        { id:'delete',    label:'Delete',            icon: ic.del, danger:true },
+      ];
+      return (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 inline-flex items-center bg-[#1c212b] text-white rounded-2xl px-3 py-1.5 gap-0.5"
+          style={{ boxShadow: '0 12px 32px rgba(28,33,43,0.32)' }}
+        >
+          <span className="inline-flex items-center gap-2 pl-2 pr-1 text-[13px] font-medium">
+            <span className="bg-white text-[#1c212b] text-[12px] font-semibold rounded-full px-2 h-5 inline-flex items-center tabular-nums">{count}</span>
+            selected
+            <button
+              onClick={onClear}
+              className="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-white/10"
+              aria-label="Clear selection"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
+          </span>
+          <span className="w-px h-5 bg-white/20 mx-1" />
+          {actions.map(a => (
+            <button
+              key={a.id}
+              onClick={()=>onAction(a.id)}
+              className={`inline-flex items-center gap-1.5 px-2.5 h-8 rounded-md text-[13px] hover:bg-white/10 ${a.danger ? 'text-[#ff8b75]' : 'text-white'}`}
+            >
+              {a.icon}
+              {a.label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
     /* Toggle pill — small iOS-style switch used inside the settings popover */
     function Toggle({ value, onChange }) {
       return (
@@ -1334,7 +1387,21 @@
 
       const cellFor = (id, r) => {
         switch(id) {
-          case 'n':        return <span className="text-[12px] text-[#72757b] tabular-nums">{r.n}</span>;
+          case 'n': {
+            const isSel = selected.has(r.n);
+            return (
+              <span className="relative inline-flex items-center justify-center w-5 h-5">
+                <span className={`text-[12px] text-[#72757b] tabular-nums ${isSel ? 'opacity-0' : 'group-hover:opacity-0'}`}>{r.n}</span>
+                <input
+                  type="checkbox"
+                  checked={isSel}
+                  onChange={()=>onToggleRow(r.n)}
+                  onClick={(e)=>e.stopPropagation()}
+                  className={`absolute inset-0 m-auto w-4 h-4 accent-[#1c212b] ${isSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                />
+              </span>
+            );
+          }
           case 'name':     return <EntityChip kind="obligation" label={r.name} />;
           case 'contract': return <EntityChip kind="contract" label={r.contract} />;
           case 'desc':     return <span className="text-[13px] text-[#43474f] block truncate" title={r.desc}>{r.desc}</span>;
@@ -1454,9 +1521,6 @@
                   );
                 })()}
                 <tr style={dense ? { height: 36 } : null}>
-                  <th className={`w-9 px-3 ${headerPadY} border-b`} style={{ borderColor: C.gray10, background:'#ffffff', borderRight: cellBorder, height: dense ? 36 : undefined }}>
-                    <input type="checkbox" className="accent-[#2e846c]" onChange={()=>{}} checked={false} />
-                  </th>
                   {orderedCols.map((col, idx) => <Header key={col.id} col={col} cellBorder={cellBorder} isLast={idx === orderedCols.length - 1} dense={dense} headerPadY={headerPadY} />)}
                 </tr>
               </thead>
@@ -1464,13 +1528,10 @@
                 {rows.map(r => (
                   <tr
                     key={r.n}
-                    className={`${dense ? 'data-row' : 'row-hover'} ${(!dense || cellsClickable) ? 'cursor-pointer' : ''}`}
+                    className={`group ${dense ? 'data-row' : 'row-hover'} ${(!dense || cellsClickable) ? 'cursor-pointer' : ''}`}
                     onClick={()=>onRowClick(r)}
                     style={dense ? { height: 36 } : null}
                   >
-                    <td className={`px-3 ${cellPadY} border-b align-middle`} style={{ borderColor: C.gray10, borderRight: cellBorder, height: dense ? 36 : undefined }}>
-                      <input type="checkbox" className="accent-[#2e846c]" checked={selected.has(r.n)} onClick={e=>e.stopPropagation()} onChange={()=>onToggleRow(r.n)} />
-                    </td>
                     {orderedCols.map((col, idx) => {
                       const isActive = dense && activeCell && activeCell.rowN === r.n && activeCell.colId === col.id;
                       const earOpen = dense && earMenuCell && earMenuCell.rowN === r.n && earMenuCell.colId === col.id;
@@ -2240,6 +2301,11 @@
             </main>
           </div>
           <DetailDrawer row={openRow} onClose={()=>setOpenRow(null)} />
+          <SelectionActionBar
+            count={selected.size}
+            onClear={()=>setSelected(new Set())}
+            onAction={(id)=>console.log('bulk action', id, [...selected])}
+          />
         </div>
       );
     }
