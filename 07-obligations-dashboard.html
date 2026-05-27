@@ -837,7 +837,7 @@
       const [mounted, setMounted] = useState(false);
       const [width, setWidth] = useState(640);
       const resizingRef = useRef(null);
-      useEffect(() => { if (onWidthChange) onWidthChange(width); }, [width, onWidthChange]);
+      useEffect(() => { if (onWidthChange) onWidthChange(width, !!resizingRef.current); }, [width, onWidthChange]);
 
       useEffect(() => {
         if (!payload) return;
@@ -892,8 +892,11 @@
 
       return (
         <div
-          className="shrink-0 bg-white flex flex-col relative"
+          className="fixed bg-white flex flex-col z-40"
           style={{
+            top: 49, // sit 1px above the 50px nav bar's bottom edge to seam
+            right: 0,
+            bottom: 0,
             width,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
             transition: resizingRef.current ? 'none' : 'transform .22s ease-out',
@@ -2356,7 +2359,14 @@
         return () => ids.forEach(clearTimeout);
       }, [docPreview, reanchorActiveCell]);
 
-      const onPreviewWidthChange = useCallback(() => {
+      // Track the doc preview's current width so the main column can match
+      // its padding-right and "push" the table to keep the source card +
+      // active cell clear of the panel.
+      const [docPreviewWidth, setDocPreviewWidth] = useState(640);
+      const [docPreviewResizing, setDocPreviewResizing] = useState(false);
+      const onPreviewWidthChange = useCallback((w, isResizing) => {
+        if (typeof w === 'number') setDocPreviewWidth(w);
+        if (typeof isResizing === 'boolean') setDocPreviewResizing(isResizing);
         reanchorActiveCell();
       }, [reanchorActiveCell]);
 
@@ -2516,7 +2526,7 @@
             />
             <main
               className="flex-1 flex flex-col overflow-hidden"
-              style={{ paddingRight: assistantOpen ? ASSISTANT_W : 0, transition: 'padding-right .22s ease-out' }}
+              style={{ paddingRight: Math.max(docPreview ? docPreviewWidth : 0, assistantOpen ? ASSISTANT_W : 0), transition: docPreviewResizing ? 'none' : 'padding-right .22s ease-out' }}
             >
               {/* Title row */}
               <div className="px-6 pt-5 flex items-start justify-between">
@@ -2713,11 +2723,11 @@
                 </div>
               )}
 
-              {/* Table — flush to the edges. The table scroller and the
-                  document preview are flex siblings so the preview PUSHES the
-                  table left instead of overlaying it. */}
-              <div className="mt-4 pb-0 flex-1 relative flex flex-row overflow-hidden">
-                <div ref={tableScrollerRef} className="flex-1 min-w-0 overflow-auto">
+              {/* Table — flush to the edges. The doc preview is rendered
+                  as a fixed-position panel anchored to the viewport, so the
+                  table area is naturally pushed by <main>'s padding-right. */}
+              <div className="mt-4 pb-0 flex-1 relative overflow-hidden">
+                <div ref={tableScrollerRef} className="h-full overflow-auto">
                   <ObligationsTable
                     rows={filtered}
                     sort={sort}
