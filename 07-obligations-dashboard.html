@@ -1740,7 +1740,7 @@
       );
     }
 
-    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, tableView, onCellClick, activeCell, onEarClick, earMenuCell, cellsClickable, onPillClick }) {
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, tableView, onCellClick, onCellDoubleClick, activeCell, onEarClick, earMenuCell, cellsClickable, onPillClick }) {
 
       const cellFor = (id, r) => {
         switch(id) {
@@ -1923,6 +1923,7 @@
                             cursor: dense ? (cellsClickable ? 'pointer' : 'default') : undefined,
                           }}
                           onClick={dense ? (e)=>{ e.stopPropagation(); onCellClick(r, col, e.currentTarget); } : undefined}
+                          onDoubleClick={dense ? (e)=>{ e.stopPropagation(); onCellDoubleClick && onCellDoubleClick(r, col, e.currentTarget); } : undefined}
                         >
                           {cellFor(col.id, r)}
                           {dense && (
@@ -2271,6 +2272,12 @@
           return { row, col, data: tpl(row) };
         });
       }, [tableSettings.showSourceOnClick]);
+      // Double-click in a cell jumps straight to the source card in edit mode
+      // (skips the read-only "view" state).
+      const onCellDoubleClick = useCallback((row, col, el) => {
+        const rect = el.getBoundingClientRect();
+        setSourceCell({ row, col, rect, mode: 'edit' });
+      }, []);
       const closeSource = useCallback(() => setSourceCell(null), []);
 
       // Cell overflow action ear (Data view only)
@@ -2756,6 +2763,7 @@
                     orderedCols={orderedCols}
                     tableView={tableView}
                     onCellClick={onCellClick}
+                    onCellDoubleClick={onCellDoubleClick}
                     activeCell={
                       sourceCell
                         ? { rowN: sourceCell.row.n, colId: sourceCell.col.id }
