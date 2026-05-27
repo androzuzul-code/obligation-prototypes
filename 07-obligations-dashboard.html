@@ -386,7 +386,7 @@
       );
     }
 
-    function Sidebar({ activeView, onView, expandedSections, onToggleSection, activeType, onType }) {
+    function Sidebar({ activeView, onView, expandedSections, onToggleSection, activeType, onType, collapsed }) {
       const Section = ({ id, label, children, action }) => (
         <div className="mb-1">
           <button
@@ -421,7 +421,16 @@
       };
 
       return (
-        <aside className="w-[268px] shrink-0 border-r overflow-y-auto scroll-hide bg-white pb-12 pr-4" style={{ borderColor: C.gray10 }}>
+        <aside
+          className="shrink-0 border-r overflow-y-auto scroll-hide bg-white pb-12"
+          style={{
+            width: collapsed ? 0 : 268,
+            paddingRight: collapsed ? 0 : 16,
+            borderRightWidth: collapsed ? 0 : 1,
+            borderColor: C.gray10,
+            transition: 'width .22s ease-out, padding-right .22s ease-out, border-right-width .22s ease-out',
+          }}
+        >
           <Section id="views" label="Views" action={<span className="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-[#edeef2] text-[#43474f]">{I.plus()}</span>}>
             {VIEWS.map(v => <ViewItem key={v.id} id={v.id} label={v.label} count={v.count} icon={<SidebarIcon kind={v.icon} />} />)}
           </Section>
@@ -831,7 +840,7 @@
       return { sections, targetIdx, cleanQuote };
     }
 
-    function DocumentPreview({ payload, onClose, onWidthChange }) {
+    function DocumentPreview({ payload, onClose, onWidthChange, rightOffset = 0 }) {
       const scrollerRef = useRef(null);
       const highlightRef = useRef(null);
       const [mounted, setMounted] = useState(false);
@@ -895,11 +904,11 @@
           className="fixed bg-white flex flex-col z-40"
           style={{
             top: 49, // sit 1px above the 50px nav bar's bottom edge to seam
-            right: 0,
+            right: rightOffset,
             bottom: 0,
             width,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
-            transition: resizingRef.current ? 'none' : 'transform .22s ease-out',
+            transition: resizingRef.current ? 'none' : 'transform .22s ease-out, right .22s ease-out',
             borderLeft: `1px solid ${C.gray10}`,
             borderTop: `1px solid ${C.gray10}`,
           }}
@@ -1744,7 +1753,7 @@
       );
     }
 
-    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection, tableView, onCellClick, activeCell, onEarClick, earMenuCell, cellsClickable, onPillClick }) {
+    function ObligationsTable({ rows, sort, onSort, onRowClick, selected, onToggleRow, colWidths, onResizeStart, orderedCols, tableView, onCellClick, activeCell, onEarClick, earMenuCell, cellsClickable, onPillClick }) {
 
       const cellFor = (id, r) => {
         switch(id) {
@@ -1942,31 +1951,34 @@
               </tbody>
             </table>
 
-          {/* Sticky "+" column picker — floats at the top-right with a
-              subtle dark drop shadow (no white fade behind it). */}
-          <div className="absolute top-0 right-0 z-20" style={{ pointerEvents: 'none' }}>
-            <div className="flex items-center justify-end pr-3" style={{ height: 41, pointerEvents: 'auto' }}>
-              <div className="relative flex items-center justify-center" style={{ height: 40 }}>
-                <button
-                  ref={columnPickerBtnRef}
-                  onClick={()=>setColumnPickerOpen(o=>!o)}
-                  aria-label="Add column"
-                  title="Add or remove columns"
-                  className={`w-7 h-7 inline-flex items-center justify-center rounded-md border ${columnPickerOpen ? 'bg-[#1c212b] text-white border-[#1c212b]' : 'bg-white text-[#43474f] hover:bg-[#f5f6f8]'}`}
-                  style={{ borderColor: columnPickerOpen ? '#1c212b' : C.gray10, boxShadow: '0 2px 6px rgba(28,33,43,0.16), 0 1px 2px rgba(28,33,43,0.10)' }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-                </button>
-                <ColumnPicker
-                  open={columnPickerOpen}
-                  panelRef={columnPickerRef}
-                  anchorRef={columnPickerBtnRef}
-                  manualCols={manualCols}
-                  toggleCol={toggleCol}
-                  toggleSection={toggleSection}
-                  onClose={()=>setColumnPickerOpen(false)}
-                />
-              </div>
+        </div>
+      );
+    }
+
+    function ColumnPickerButton({ columnPickerOpen, setColumnPickerOpen, columnPickerBtnRef, columnPickerRef, manualCols, toggleCol, toggleSection }) {
+      return (
+        <div className="absolute top-0 right-0 z-20" style={{ pointerEvents: 'none' }}>
+          <div className="flex items-center justify-end pr-3" style={{ height: 41, pointerEvents: 'auto' }}>
+            <div className="relative flex items-center justify-center" style={{ height: 40 }}>
+              <button
+                ref={columnPickerBtnRef}
+                onClick={()=>setColumnPickerOpen(o=>!o)}
+                aria-label="Add column"
+                title="Add or remove columns"
+                className={`w-7 h-7 inline-flex items-center justify-center rounded-md border ${columnPickerOpen ? 'bg-[#1c212b] text-white border-[#1c212b]' : 'bg-white text-[#43474f] hover:bg-[#f5f6f8]'}`}
+                style={{ borderColor: columnPickerOpen ? '#1c212b' : C.gray10, boxShadow: '0 2px 6px rgba(28,33,43,0.16), 0 1px 2px rgba(28,33,43,0.10)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+              <ColumnPicker
+                open={columnPickerOpen}
+                panelRef={columnPickerRef}
+                anchorRef={columnPickerBtnRef}
+                manualCols={manualCols}
+                toggleCol={toggleCol}
+                toggleSection={toggleSection}
+                onClose={()=>setColumnPickerOpen(false)}
+              />
             </div>
           </div>
         </div>
@@ -2057,16 +2069,23 @@
       );
     }
 
-    function AssistantButton({ onClick }) {
+    function AssistantButton({ onClick, rightOffset = 0 }) {
       return (
         <button
           onClick={onClick}
-          className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-[#1c212b] text-white text-[13px] font-medium hover:opacity-95 transition-opacity"
-          style={{ boxShadow: '0 8px 20px rgba(28,33,43,0.20), 0 2px 4px rgba(28,33,43,0.10)' }}
+          className="fixed bottom-6 z-30 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-white text-[#1c212b] text-[13px] font-medium hover:bg-[#f5f6f8] border"
+          style={{
+            right: 24 + rightOffset,
+            borderColor: C.gray10,
+            boxShadow: '0 8px 20px rgba(28,33,43,0.10), 0 1px 3px rgba(28,33,43,0.06)',
+            transition: 'right .22s ease-out, background-color .15s',
+          }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1.5l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2 1.2-3z" fill="currentColor"/>
-          </svg>
+          <span className="text-[#2e846c]">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2 1.2-3z" fill="currentColor"/>
+            </svg>
+          </span>
           Assistant
         </button>
       );
@@ -2523,10 +2542,11 @@
               onToggleSection={toggleSidebarSection}
               activeType={activeType}
               onType={onType}
+              collapsed={!!docPreview && assistantOpen}
             />
             <main
               className="flex-1 flex flex-col overflow-hidden"
-              style={{ paddingRight: Math.max(docPreview ? docPreviewWidth : 0, assistantOpen ? ASSISTANT_W : 0), transition: docPreviewResizing ? 'none' : 'padding-right .22s ease-out' }}
+              style={{ paddingRight: (docPreview ? docPreviewWidth : 0) + (assistantOpen ? ASSISTANT_W : 0), transition: docPreviewResizing ? 'none' : 'padding-right .22s ease-out' }}
             >
               {/* Title row */}
               <div className="px-6 pt-5 flex items-start justify-between">
@@ -2738,13 +2758,6 @@
                     colWidths={colWidths}
                     onResizeStart={onResizeStart}
                     orderedCols={orderedCols}
-                    columnPickerOpen={columnPickerOpen}
-                    setColumnPickerOpen={setColumnPickerOpen}
-                    columnPickerBtnRef={columnPickerBtnRef}
-                    columnPickerRef={columnPickerRef}
-                    manualCols={manualCols}
-                    toggleCol={toggleCol}
-                    toggleSection={toggleSection}
                     tableView={tableView}
                     onCellClick={onCellClick}
                     activeCell={
@@ -2758,6 +2771,15 @@
                     onPillClick={onPillClick}
                   />
                 </div>
+                <ColumnPickerButton
+                  columnPickerOpen={columnPickerOpen}
+                  setColumnPickerOpen={setColumnPickerOpen}
+                  columnPickerBtnRef={columnPickerBtnRef}
+                  columnPickerRef={columnPickerRef}
+                  manualCols={manualCols}
+                  toggleCol={toggleCol}
+                  toggleSection={toggleSection}
+                />
                 <SourcePopover
                   anchorRect={sourceCell?.rect}
                   row={sourceCell?.row}
@@ -2777,7 +2799,7 @@
                   onClose={closeEarMenu}
                   onAction={onEarAction}
                 />
-                {docPreview && <DocumentPreview payload={docPreview} onClose={closeDoc} onWidthChange={onPreviewWidthChange} />}
+                {docPreview && <DocumentPreview payload={docPreview} onClose={closeDoc} onWidthChange={onPreviewWidthChange} rightOffset={assistantOpen ? ASSISTANT_W : 0} />}
               </div>
             </main>
           </div>
@@ -2789,7 +2811,7 @@
           />
           <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} />
           <AssistantPanel open={assistantOpen} onClose={()=>setAssistantOpen(false)} />
-          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} />}
+          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} rightOffset={docPreview ? docPreviewWidth : 0} />}
         </div>
       );
     }
