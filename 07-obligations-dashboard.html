@@ -933,44 +933,31 @@
             </button>
           </div>
 
-          {/* Document scroller */}
-          <div ref={scrollerRef} className="flex-1 overflow-y-auto px-7 py-6 leading-[1.6] text-[14px] text-[#1c212b]" style={{ background:'#fafbfc' }}>
-            <div className="mx-auto bg-white rounded-md border p-6" style={{ borderColor: C.gray10, maxWidth: Math.max(380, width - 120) }}>
-              <h1 className="font-display text-[18px] font-bold mb-1">{(row.contract || 'Master Services Agreement').toUpperCase()}</h1>
-              <div className="text-[12px] text-[#72757b] mb-5">Acme Corporation and {row.cparty || 'Counterparty'} · Executed Mar 14, 2024</div>
-              {body.sections.map((sec, idx) => (
-                <div key={idx} className="mb-5">
-                  <h2 className="font-display text-[14px] font-semibold mb-2">{sec.head}</h2>
-                  {sec.paras.map((p, j) => {
-                    const isHighlight = (idx === body.targetIdx && p === body.cleanQuote);
-                    if (isHighlight) {
-                      return (
-                        <p
-                          key={j}
-                          ref={highlightRef}
-                          className="mb-3 rounded-md px-2 py-1"
-                          style={{ background:'#cfe3ff', boxShadow:'inset 0 0 0 1px #3b83f6' }}
-                        >
-                          {p}
-                        </p>
-                      );
-                    }
-                    return <p key={j} className="mb-3 text-[#43474f]">{p}</p>;
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="px-5 py-3 border-t bg-white flex items-center justify-between" style={{ borderColor: C.gray10 }}>
-            <span className="text-[12px] text-[#72757b]">Highlighted text is the source of <span className="font-medium text-[#1c212b]">{col.label}</span>.</span>
-            <button
-              onClick={slideClose}
-              className="bg-[#1c212b] text-white px-3 h-8 rounded-md text-[12px] font-semibold hover:opacity-90"
-            >
-              Done
-            </button>
+          {/* Document scroller — content spreads edge-to-edge, no gray gutter */}
+          <div ref={scrollerRef} className="flex-1 overflow-y-auto px-8 py-6 leading-[1.6] text-[14px] text-[#1c212b] bg-white">
+            <h1 className="font-display text-[18px] font-bold mb-1">{(row.contract || 'Master Services Agreement').toUpperCase()}</h1>
+            <div className="text-[12px] text-[#72757b] mb-5">Acme Corporation and {row.cparty || 'Counterparty'} · Executed Mar 14, 2024</div>
+            {body.sections.map((sec, idx) => (
+              <div key={idx} className="mb-5">
+                <h2 className="font-display text-[14px] font-semibold mb-2">{sec.head}</h2>
+                {sec.paras.map((p, j) => {
+                  const isHighlight = (idx === body.targetIdx && p === body.cleanQuote);
+                  if (isHighlight) {
+                    return (
+                      <p
+                        key={j}
+                        ref={highlightRef}
+                        className="mb-3 rounded-md px-2 py-1"
+                        style={{ background:'#cfe3ff', boxShadow:'inset 0 0 0 1px #3b83f6' }}
+                      >
+                        {p}
+                      </p>
+                    );
+                  }
+                  return <p key={j} className="mb-3 text-[#43474f]">{p}</p>;
+                })}
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -1857,7 +1844,7 @@
       const headerPadY = dense ? 'py-2' : 'py-2.5';
       const cellBorder = dense ? '1px solid ' + C.gray10 : 'none';
       return (
-        <div className="bg-white relative border-t" style={{ borderColor: C.gray10 }}>
+        <div className="bg-white relative border-t" style={{ borderColor: C.gray10, width: 'max-content', minWidth: '100%' }}>
             <table className="border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
               <thead>
                 {dense && (() => {
@@ -1866,32 +1853,41 @@
                   for (const g of COL_GROUPS) for (const c of g.cols) groupOf[c] = g;
                   const runs = [];
                   let cur = null;
+                  let idx = 0;
                   for (const col of orderedCols) {
                     const g = groupOf[col.id];
                     const key = g ? g.id : '__none';
                     if (cur && cur.key === key) cur.span++;
-                    else { cur = { key, label: g ? g.label : '', span: 1 }; runs.push(cur); }
+                    else { cur = { key, label: g ? g.label : '', span: 1, startIdx: idx }; runs.push(cur); }
+                    idx++;
                   }
+                  // Per-run pixel width so the section row dictates column widths
+                  // under tableLayout:fixed (otherwise it would auto-distribute
+                  // based on label content and shrink the table).
                   return (
                     <tr style={{ height: 32 }}>
-                      <th className="border-b" style={{ borderColor: C.gray10, background: '#ffffff', borderRight: cellBorder, position: 'sticky', top: 0, zIndex: 4 }} />
-                      {runs.map((run, i) => (
-                        <th
-                          key={i}
-                          colSpan={run.span}
-                          className="px-3 py-1.5 text-left border-b"
-                          style={{
-                            background: '#ffffff',
-                            borderColor: C.gray10,
-                            borderRight: (i < runs.length - 1) ? cellBorder : 'none',
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 4,
-                          }}
-                        >
-                          <span className="text-[11px] font-semibold text-[#72757b]" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{run.label}</span>
-                        </th>
-                      ))}
+                      {runs.map((run, i) => {
+                        let w = 0;
+                        for (let k = run.startIdx; k < run.startIdx + run.span; k++) w += colWidths[orderedCols[k].id] || 0;
+                        return (
+                          <th
+                            key={i}
+                            colSpan={run.span}
+                            className="px-3 py-1.5 text-left border-b"
+                            style={{
+                              width: w, minWidth: w, maxWidth: w,
+                              background: '#ffffff',
+                              borderColor: C.gray10,
+                              borderRight: (i < runs.length - 1) ? cellBorder : 'none',
+                              position: 'sticky',
+                              top: 0,
+                              zIndex: 4,
+                            }}
+                          >
+                            <span className="text-[11px] font-semibold text-[#72757b]" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{run.label}</span>
+                          </th>
+                        );
+                      })}
                     </tr>
                   );
                 })()}
@@ -2073,7 +2069,7 @@
       return (
         <button
           onClick={onClick}
-          className="fixed bottom-6 z-30 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-white text-[#1c212b] text-[13px] font-medium hover:bg-[#f5f6f8] border"
+          className="fixed bottom-6 z-50 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-white text-[#1c212b] text-[13px] font-medium hover:bg-[#f5f6f8] border"
           style={{
             right: 24 + rightOffset,
             borderColor: C.gray10,
@@ -2811,7 +2807,7 @@
           />
           <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} />
           <AssistantPanel open={assistantOpen} onClose={()=>setAssistantOpen(false)} />
-          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} rightOffset={docPreview ? docPreviewWidth : 0} />}
+          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} />}
         </div>
       );
     }

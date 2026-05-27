@@ -2070,7 +2070,7 @@
       return (
         <button
           onClick={onClick}
-          className="fixed bottom-6 z-30 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-white text-[#1c212b] text-[13px] font-medium hover:bg-[#f5f6f8] border"
+          className="fixed bottom-6 z-50 inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-full bg-white text-[#1c212b] text-[13px] font-medium hover:bg-[#f5f6f8] border"
           style={{
             right: 24 + rightOffset,
             borderColor: C.gray10,
@@ -2806,7 +2806,7 @@
           />
           <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} />
           <AssistantPanel open={assistantOpen} onClose={()=>setAssistantOpen(false)} />
-          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} rightOffset={docPreview ? docPreviewWidth : 0} />}
+          {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} />}
         </div>
       );
     }
