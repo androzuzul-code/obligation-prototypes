@@ -840,7 +840,7 @@
       return { sections, targetIdx, cleanQuote };
     }
 
-    function DocumentPreview({ payload, onClose, onWidthChange, rightOffset = 0 }) {
+    function DocumentPreview({ payload, onClose, onWidthChange }) {
       const scrollerRef = useRef(null);
       const highlightRef = useRef(null);
       const [mounted, setMounted] = useState(false);
@@ -901,14 +901,12 @@
 
       return (
         <div
-          className="fixed bg-white flex flex-col z-40"
+          className="bg-white flex flex-col relative"
           style={{
-            top: 49, // sit 1px above the 50px nav bar's bottom edge to seam
-            right: rightOffset,
-            bottom: 0,
             width,
+            flexShrink: 0,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
-            transition: resizingRef.current ? 'none' : 'transform .22s ease-out, right .22s ease-out',
+            transition: resizingRef.current ? 'none' : 'transform .22s ease-out',
             borderLeft: `1px solid ${C.gray10}`,
             borderTop: `1px solid ${C.gray10}`,
           }}
@@ -1070,7 +1068,7 @@
     /* Object detail side panel — opens when user clicks an entity pill.
      * Three variants by `kind` (obligation / contract / entity).
      * No scrim — rest of the page stays interactive. */
-    function ObjectPanel({ payload, onClose }) {
+    function ObjectPanel({ payload, onClose, rightOffset = 0 }) {
       const [mounted, setMounted] = useState(false);
       useEffect(() => {
         if (!payload) return;
@@ -1383,12 +1381,13 @@
 
       return (
         <div
-          className="fixed right-0 bottom-0 z-50 bg-white flex flex-col"
+          className="fixed bottom-0 z-50 bg-white flex flex-col"
           style={{
             top: 49, // 1px above 50px to seam against the nav bar's bottom border
+            right: rightOffset,
             width: kind === 'obligation' ? 524 : kind === 'entity' ? 492 : 500,
             transform: mounted ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform .22s ease-out',
+            transition: 'transform .22s ease-out, right .22s ease-out',
             borderLeft: `1px solid ${C.gray10}`,
             borderTop: `1px solid ${C.gray10}`,
           }}
@@ -2308,7 +2307,14 @@
 
       // Object detail side panel (Obligation / Contract / Entity)
       const [objectPanel, setObjectPanel] = useState(null); // { kind, row }
-      const onPillClick = useCallback((payload) => setObjectPanel(payload), []);
+      const onPillClick = useCallback((payload) => {
+        // Opening an object panel closes any cell-source UI: the doc preview
+        // and the source card popover. The object panel takes over the right
+        // rail (and slides further left if the Assistant is open).
+        setDocPreview(null);
+        setSourceCell(null);
+        setObjectPanel(payload);
+      }, []);
       const closeObjectPanel = useCallback(() => setObjectPanel(null), []);
 
       // Document preview slideout
@@ -2549,7 +2555,7 @@
             />
             <main
               className="flex-1 flex flex-col overflow-hidden"
-              style={{ paddingRight: (docPreview ? docPreviewWidth : 0) + (assistantOpen ? ASSISTANT_W : 0), transition: docPreviewResizing ? 'none' : 'padding-right .22s ease-out' }}
+              style={{ paddingRight: assistantOpen ? ASSISTANT_W : 0, transition: 'padding-right .22s ease-out' }}
             >
               {/* Title row */}
               <div className="px-6 pt-5 flex items-start justify-between">
@@ -2746,44 +2752,47 @@
                 </div>
               )}
 
-              {/* Table — flush to the edges. The doc preview is rendered
-                  as a fixed-position panel anchored to the viewport, so the
-                  table area is naturally pushed by <main>'s padding-right. */}
-              <div className="mt-4 pb-0 flex-1 relative overflow-hidden">
-                <div ref={tableScrollerRef} className="h-full overflow-auto">
-                  <ObligationsTable
-                    rows={filtered}
-                    sort={sort}
-                    onSort={onSort}
-                    selected={selected}
-                    onToggleRow={onToggleRow}
-                    onRowClick={setOpenRow}
-                    colWidths={colWidths}
-                    onResizeStart={onResizeStart}
-                    orderedCols={orderedCols}
-                    tableView={tableView}
-                    onCellClick={onCellClick}
-                    onCellDoubleClick={onCellDoubleClick}
-                    activeCell={
-                      sourceCell
-                        ? { rowN: sourceCell.row.n, colId: sourceCell.col.id }
-                        : (docPreview ? { rowN: docPreview.row.n, colId: docPreview.col.id } : null)
-                    }
-                    onEarClick={onEarClick}
-                    earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
-                    cellsClickable={!!tableSettings.showSourceOnClick}
-                    onPillClick={onPillClick}
+              {/* Table — the table scroller and the doc preview are flex
+                  siblings inside the table-area wrapper, so the preview lives
+                  WITHIN the table bounds (not under the global top nav) and
+                  PUSHES the table left rather than overlaying it. */}
+              <div className="mt-4 pb-0 flex-1 relative flex flex-row overflow-hidden">
+                <div className="flex-1 min-w-0 relative">
+                  <div ref={tableScrollerRef} className="h-full overflow-auto">
+                    <ObligationsTable
+                      rows={filtered}
+                      sort={sort}
+                      onSort={onSort}
+                      selected={selected}
+                      onToggleRow={onToggleRow}
+                      onRowClick={setOpenRow}
+                      colWidths={colWidths}
+                      onResizeStart={onResizeStart}
+                      orderedCols={orderedCols}
+                      tableView={tableView}
+                      onCellClick={onCellClick}
+                      onCellDoubleClick={onCellDoubleClick}
+                      activeCell={
+                        sourceCell
+                          ? { rowN: sourceCell.row.n, colId: sourceCell.col.id }
+                          : (docPreview ? { rowN: docPreview.row.n, colId: docPreview.col.id } : null)
+                      }
+                      onEarClick={onEarClick}
+                      earMenuCell={earMenu ? { rowN: earMenu.row.n, colId: earMenu.col.id } : null}
+                      cellsClickable={!!tableSettings.showSourceOnClick}
+                      onPillClick={onPillClick}
+                    />
+                  </div>
+                  <ColumnPickerButton
+                    columnPickerOpen={columnPickerOpen}
+                    setColumnPickerOpen={setColumnPickerOpen}
+                    columnPickerBtnRef={columnPickerBtnRef}
+                    columnPickerRef={columnPickerRef}
+                    manualCols={manualCols}
+                    toggleCol={toggleCol}
+                    toggleSection={toggleSection}
                   />
                 </div>
-                <ColumnPickerButton
-                  columnPickerOpen={columnPickerOpen}
-                  setColumnPickerOpen={setColumnPickerOpen}
-                  columnPickerBtnRef={columnPickerBtnRef}
-                  columnPickerRef={columnPickerRef}
-                  manualCols={manualCols}
-                  toggleCol={toggleCol}
-                  toggleSection={toggleSection}
-                />
                 <SourcePopover
                   anchorRect={sourceCell?.rect}
                   row={sourceCell?.row}
@@ -2803,7 +2812,7 @@
                   onClose={closeEarMenu}
                   onAction={onEarAction}
                 />
-                {docPreview && <DocumentPreview payload={docPreview} onClose={closeDoc} onWidthChange={onPreviewWidthChange} rightOffset={assistantOpen ? ASSISTANT_W : 0} />}
+                {docPreview && <DocumentPreview payload={docPreview} onClose={closeDoc} onWidthChange={onPreviewWidthChange} />}
               </div>
             </main>
           </div>
@@ -2813,7 +2822,7 @@
             onClear={()=>setSelected(new Set())}
             onAction={(id)=>console.log('bulk action', id, [...selected])}
           />
-          <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} />
+          <ObjectPanel payload={objectPanel} onClose={closeObjectPanel} rightOffset={assistantOpen ? ASSISTANT_W : 0} />
           <AssistantPanel open={assistantOpen} onClose={()=>setAssistantOpen(false)} />
           {!assistantOpen && <AssistantButton onClick={()=>setAssistantOpen(true)} />}
         </div>
