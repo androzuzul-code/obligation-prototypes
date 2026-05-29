@@ -2322,6 +2322,9 @@
       const tableScrollerRef = useRef(null);
       const PANEL_DEFAULT_W = 640;
       const onViewInDoc = useCallback((payload) => {
+        // Mutually exclusive with the object detail panel — only one right-rail
+        // panel can be open at a time. Close any open object panel first.
+        setObjectPanel(null);
         // Pan the table BEFORE mounting the doc preview, so the active cell
         // and the source card both end up clear of where the panel will sit.
         const sc = tableScrollerRef.current;
