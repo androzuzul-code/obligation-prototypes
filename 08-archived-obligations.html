@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Archived obligations — UI exploration</title>
+  <script src="vendor/tailwindcss.js"></script>
+  <script src="vendor/react.js"></script>
+  <script src="vendor/react-dom.js"></script>
+  <script src="vendor/babel.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif; color: #1c212b; -webkit-font-smoothing: antialiased; background: #fafbfc; letter-spacing: -0.005em; }
+    .font-display { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Inter", system-ui, sans-serif; }
+    /* hover lift on variant cards */
+    .variant { background: #fff; border: 1px solid #e2e2e8; border-radius: 12px; }
+    .variant table { width: 100%; border-collapse: collapse; }
+    .variant th, .variant td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+    .variant th { text-align: left; color: #72757b; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; background: #fafbfc; border-bottom: 1px solid #e2e2e8; }
+    .variant tbody tr { border-bottom: 1px solid #f1f1f4; }
+    .variant tbody tr:last-child { border-bottom: none; }
+    .pro-con { font-size: 12px; color: #43474f; line-height: 1.6; }
+    .pro-con b { color: #1c212b; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { Fragment } = React;
+
+    const C = {
+      gray04:'#fafbfc', gray06:'#f5f6f8', gray10:'#e2e2e8', gray20:'#cbcdd1', gray40:'#9e9ea5',
+      black50:'#72757b', black70:'#43474f', black90:'#1c212b',
+      blue05:'#e5f1ff', blue50:'#3b83f6',
+      green10:'#c9e4dc', green50:'#2e846c',
+      red10:'#f8dcd8', red50:'#d14e38',
+      yellow10:'#fcdfa5', yellow50:'#bf8519',
+    };
+
+    /* ---------- Status pill ---------- */
+    const STATUS = {
+      'In-progress': { bg: C.blue05,    fg: C.black90 },
+      'Completed':   { bg: C.green10,   fg: C.black90 },
+      'Pending':     { bg: C.gray06,    fg: C.black70 },
+      'At risk':     { bg: C.yellow10,  fg: C.black90 },
+      'Overdue':     { bg: C.red10,     fg: C.black90 },
+    };
+
+    const Pill = ({ label, tone='neutral', muted=false, size='md', icon=null, style={} }) => {
+      const tones = {
+        neutral:  { bg: C.gray06,  fg: C.black70 },
+        archived: { bg: C.black90, fg: '#fff' },
+        archivedSoft: { bg: '#e7e9ec', fg: C.black70 },
+      };
+      const fromStatus = STATUS[label];
+      const palette = fromStatus || tones[tone] || tones.neutral;
+      const opacity = muted ? 0.55 : 1;
+      const sizeCls = size === 'sm' ? 'h-5 px-2 text-[11px]' : 'h-6 px-2.5 text-[12px]';
+      return (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full font-medium ${sizeCls}`}
+          style={{ background: palette.bg, color: palette.fg, opacity, ...style }}
+        >
+          {icon}
+          <span className="whitespace-nowrap">{label}</span>
+        </span>
+      );
+    };
+
+    const ArchiveIcon = ({ size=12, color='currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="3" width="12" height="3" rx="0.6" stroke={color} strokeWidth="1.3"/>
+        <path d="M3 6.5v6.2c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V6.5" stroke={color} strokeWidth="1.3"/>
+        <path d="M6.5 9h3" stroke={color} strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    );
+
+    /* ---------- Sample data ---------- */
+    const ROWS = [
+      { id: 'OB-1042', name: 'Monthly compliance report',  contract: 'Cloud Services Agreement',  status: 'In-progress', archived: false, archivedOn: null },
+      { id: 'OB-1043', name: 'Submit Q1 revenue audit',    contract: 'Reseller MSA — 2023',       status: 'Completed',   archived: true,  archivedOn: 'Mar 12, 2026' },
+      { id: 'OB-1044', name: 'Vendor onboarding review',   contract: 'Vendor SOW — Globex',       status: 'Pending',     archived: true,  archivedOn: 'Jan 04, 2026' },
+      { id: 'OB-1045', name: 'Annual security attestation',contract: 'DPA — Aurora Health',       status: 'At risk',     archived: false, archivedOn: null },
+      { id: 'OB-1046', name: 'Quarterly DPA renewal',      contract: 'Legacy DPA — 2022',         status: 'Overdue',     archived: true,  archivedOn: 'Nov 22, 2025' },
+    ];
+
+    /* ---------- Row presets ---------- */
+    // Each treatment is a function: (row) => JSX rendered into the Status cell
+    // plus an optional rowDecorator to control row-level styling.
+
+    const TREATMENTS = {
+      // A. Replace status with "Archived"
+      a_replace: {
+        title: 'A · Replace status',
+        sub:   'Status column becomes "Archived" — original status is dropped.',
+        renderStatus: (r) => r.archived
+          ? <Pill label="Archived" tone="archivedSoft" icon={<ArchiveIcon size={11} />} />
+          : <Pill label={r.status} />,
+        pro: 'Simplest. Status column scans cleanly.',
+        con: 'Loses the underlying state (was it completed? overdue?). No way to filter "archived obligations that were never completed."',
+      },
+
+      // B. Two pills side-by-side: Archived primary + faded status
+      b_side: {
+        title: 'B · Archived pill + faded status (side-by-side)',
+        sub:   '"Archived" pill is dominant; original status sits next to it, dimmed.',
+        renderStatus: (r) => r.archived
+          ? (
+            <div className="flex items-center gap-1.5">
+              <Pill label="Archived" tone="archivedSoft" icon={<ArchiveIcon size={11} />} />
+              <Pill label={r.status} muted size="sm" />
+            </div>
+          )
+          : <Pill label={r.status} />,
+        pro: 'Both pieces of info preserved; archived state is dominant.',
+        con: 'Takes more horizontal width — the Status column has to be wider.',
+      },
+
+      // C. Stacked vertically — Archived on top, status muted below
+      c_stack: {
+        title: 'C · Stacked (Archived above status)',
+        sub:   'Archived as a header chip, status hangs below it at lower visual weight.',
+        renderStatus: (r) => r.archived
+          ? (
+            <div className="flex flex-col items-start gap-0.5">
+              <Pill label="Archived" tone="archivedSoft" size="sm" icon={<ArchiveIcon size={10} />} />
+              <span className="text-[11px] text-[#72757b]">was {r.status}</span>
+            </div>
+          )
+          : <Pill label={r.status} />,
+        pro: 'Compact horizontally; clearly establishes archived as the overriding state.',
+        con: 'Increases row height. The "was X" line risks reading like body text rather than data.',
+      },
+
+      // D. Compound pill — "Archived · In-progress"
+      d_compound: {
+        title: 'D · Compound pill ("Archived · was In-progress")',
+        sub:   'Single chip carries both pieces, separated by a middot.',
+        renderStatus: (r) => r.archived
+          ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full font-medium h-6 px-2.5 text-[12px]"
+              style={{ background: '#e7e9ec', color: C.black70 }}
+            >
+              <ArchiveIcon size={11} />
+              <span>Archived</span>
+              <span style={{ color: C.gray40 }}>·</span>
+              <span style={{ color: C.black50, fontWeight: 400 }}>{r.status}</span>
+            </span>
+          )
+          : <Pill label={r.status} />,
+        pro: 'Single token to scan; encodes both states compactly.',
+        con: 'Long status labels (e.g. "Needs verification") + the prefix get wide. Less obvious as a filter target.',
+      },
+
+      // E. Row dim + small archive chip prefixed to name; status pill unchanged but desaturated
+      e_rowDim: {
+        title: 'E · Row dimmed + archive chip prefix on name',
+        sub:   'Status pill keeps its full color but the row is muted and an archive chip prefixes the Name.',
+        rowStyle: (r) => r.archived ? { background: '#fafbfc' } : null,
+        renderName: (r) => r.archived
+          ? (
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center gap-1 rounded h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wider"
+                style={{ background: '#e7e9ec', color: C.black70 }}
+              >
+                <ArchiveIcon size={10} />
+                Archived
+              </span>
+              <span style={{ color: C.black70 }}>{r.name}</span>
+            </div>
+          )
+          : <span style={{ color: C.black90 }}>{r.name}</span>,
+        renderStatus: (r) => <Pill label={r.status} muted={r.archived} />,
+        pro: 'Status column stays untouched — easy to filter by status. Archived signal is visible across the whole row.',
+        con: 'Archived label sits in the Name column; if Name is wide users may need to scan further. Two-cell change to maintain.',
+      },
+
+      // F. Left rail accent + small "Archived" superscript-style tag above the status
+      f_rail: {
+        title: 'F · Left rail accent + small Archived superscript',
+        sub:   'A 3px gray rail flags the row; a tiny "Archived" label sits above the status pill.',
+        rowAccent: (r) => r.archived ? '#9ea3b0' : null,
+        renderStatus: (r) => r.archived
+          ? (
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#72757b] mb-0.5">Archived</span>
+              <Pill label={r.status} muted />
+            </div>
+          )
+          : <Pill label={r.status} />,
+        pro: 'Subtle and respectful of existing status column; the rail makes archived scannable at the row level.',
+        con: 'Very low contrast. Easy to overlook on a quick scan. Adds a new visual element (left rail) to support.',
+      },
+    };
+
+    /* ---------- Generic table renderer ---------- */
+    function VariantTable({ t }) {
+      return (
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 92 }}>ID</th>
+              <th>Name</th>
+              <th>Contract</th>
+              <th style={{ width: 220 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ROWS.map(r => {
+              const rowStyle = (t.rowStyle && t.rowStyle(r)) || {};
+              const accent   = t.rowAccent && t.rowAccent(r);
+              const nameTxt  = r.archived ? r.name : r.name;
+              return (
+                <tr key={r.id} style={{ ...rowStyle, position: 'relative' }}>
+                  <td style={{ color: '#72757b', fontVariantNumeric: 'tabular-nums', borderLeft: accent ? `3px solid ${accent}` : '3px solid transparent', paddingLeft: 11 }}>
+                    {r.id}
+                  </td>
+                  <td>
+                    {t.renderName ? t.renderName(r) : <span style={{ color: r.archived && !t.renderName ? C.black70 : C.black90 }}>{nameTxt}</span>}
+                  </td>
+                  <td style={{ color: r.archived ? '#72757b' : '#43474f' }}>{r.contract}</td>
+                  <td>{t.renderStatus(r)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      );
+    }
+
+    function Variant({ t }) {
+      return (
+        <section className="variant overflow-hidden">
+          <header className="px-5 py-3 border-b" style={{ borderColor: '#e2e2e8' }}>
+            <h3 className="font-display font-semibold text-[15px] text-[#1c212b]">{t.title}</h3>
+            <p className="text-[13px] text-[#43474f] mt-0.5">{t.sub}</p>
+          </header>
+          <VariantTable t={t} />
+          <footer className="px-5 py-3 border-t" style={{ borderColor: '#e2e2e8', background: '#fafbfc' }}>
+            <p className="pro-con"><b>Pros:</b> {t.pro}</p>
+            <p className="pro-con"><b>Cons:</b> {t.con}</p>
+          </footer>
+        </section>
+      );
+    }
+
+    /* ---------- Detail-panel variants (echoing the existing DRAFT banner pattern) ---------- */
+    function DetailFrame({ children, label }) {
+      return (
+        <div className="variant overflow-hidden" style={{ width: 460 }}>
+          <header className="px-5 py-3 border-b" style={{ borderColor: '#e2e2e8' }}>
+            <h3 className="font-display font-semibold text-[15px] text-[#1c212b]">{label}</h3>
+          </header>
+          <div className="p-5">{children}</div>
+        </div>
+      );
+    }
+
+    const ParentContractCard = ({ archived }) => (
+      <div className="rounded-lg border p-3 mt-3" style={{ borderColor: '#e2e2e8' }}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold text-[#1c212b] truncate">Cloud Services Agreement</div>
+            <div className="text-[12px] text-[#72757b] mt-0.5">Ironclad ID: IC-1 · Record Type: 6420</div>
+          </div>
+          {archived
+            ? <Pill label="Archived" tone="archivedSoft" icon={<ArchiveIcon size={11} />} />
+            : <span className="text-[12px] font-medium text-[#bf8519] inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#bf8519]" /> Auto renewing
+              </span>}
+        </div>
+      </div>
+    );
+
+    const ObligationBody = () => (
+      <Fragment>
+        <h2 className="font-display text-[22px] font-bold text-[#0e1116] mt-1">Quarterly compliance report</h2>
+        <div className="text-[12px] text-[#72757b] mt-1">OB-1043 · Manually created Jan 21, 2024 by John Smith</div>
+        <div className="mt-3 text-[12px] uppercase tracking-wider text-[#72757b]">Status</div>
+        <div className="mt-1"><Pill label="Completed" /></div>
+        <div className="mt-4 text-[12px] uppercase tracking-wider text-[#72757b]">Cadence</div>
+        <div className="mt-1 text-[14px] text-[#1c212b]">Recurring · Annual</div>
+        <div className="mt-4 text-[12px] uppercase tracking-wider text-[#72757b]">Assignee</div>
+        <div className="mt-1 text-[14px] text-[#1c212b]">Nirnay Patel</div>
+      </Fragment>
+    );
+
+    /* G — full banner, echoes the DRAFT treatment from the design system */
+    function DetailVariantG() {
+      return (
+        <DetailFrame label="G · Banner above the obligation (echoes the DRAFT pattern)">
+          <div className="rounded-xl border p-3 mb-4" style={{ borderColor: '#cbcdd1', background: '#f5f6f8' }}>
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style={{ background: '#e7e9ec' }}>
+                <ArchiveIcon size={16} color="#43474f" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-[#1c212b]">Archived — parent contract was archived on Mar 12, 2026</div>
+                <div className="text-[12px] text-[#43474f] mt-0.5">This obligation is no longer active. Its underlying status is preserved for reporting.</div>
+              </div>
+            </div>
+            <button className="mt-2.5 w-full h-9 rounded-md text-white text-[13px] font-semibold" style={{ background: '#43474f' }}>
+              View parent contract
+            </button>
+          </div>
+          <ObligationBody />
+          <ParentContractCard archived />
+        </DetailFrame>
+      );
+    }
+
+    /* H — subtle metadata tag, no banner */
+    function DetailVariantH() {
+      return (
+        <DetailFrame label="H · Subtle tag in the metadata strip (no banner)">
+          <h2 className="font-display text-[22px] font-bold text-[#0e1116]">Quarterly compliance report</h2>
+          <div className="flex items-center gap-2 text-[12px] text-[#72757b] mt-1">
+            <span>OB-1043</span>
+            <span>·</span>
+            <span>Manually created Jan 21, 2024 by John Smith</span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1 rounded h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ background: '#e7e9ec', color: C.black70 }}>
+              <ArchiveIcon size={10} /> Archived Mar 12, 2026
+            </span>
+          </div>
+          <div className="mt-3 text-[12px] uppercase tracking-wider text-[#72757b]">Status</div>
+          <div className="mt-1"><Pill label="Completed" /></div>
+          <div className="mt-4 text-[12px] uppercase tracking-wider text-[#72757b]">Cadence</div>
+          <div className="mt-1 text-[14px] text-[#1c212b]">Recurring · Annual</div>
+          <ParentContractCard archived />
+        </DetailFrame>
+      );
+    }
+
+    /* ---------- App ---------- */
+    function App() {
+      return (
+        <div className="max-w-[1180px] mx-auto px-8 py-10">
+          <header className="mb-8">
+            <h1 className="font-display font-bold text-[28px] leading-tight text-[#0e1116]">Archived obligations · UI exploration</h1>
+            <p className="text-[14px] text-[#43474f] mt-2 max-w-3xl">
+              When a contract is archived, its extracted obligations carry a status they had at archive time (e.g. <em>In-progress</em>, <em>Completed</em>). The question: how do we make <strong>Archived</strong> read as the dominant state while still preserving the underlying status — and where on the page does that signal belong?
+            </p>
+            <p className="text-[14px] text-[#43474f] mt-2 max-w-3xl">
+              Each row in every variant below shows the same 5 obligations: three are archived (their parent contract was archived), two are active. Status colors stay consistent with the existing Ironclad palette.
+            </p>
+          </header>
+
+          <h2 className="font-display font-semibold text-[18px] text-[#1c212b] mb-3">In the obligations table</h2>
+          <div className="grid grid-cols-1 gap-5 mb-12">
+            {Object.values(TREATMENTS).map((t, i) => <Variant key={i} t={t} />)}
+          </div>
+
+          <h2 className="font-display font-semibold text-[18px] text-[#1c212b] mb-3">In the obligation detail panel</h2>
+          <p className="text-[13px] text-[#43474f] mb-4 max-w-3xl">
+            The existing system already has a <strong>DRAFT — Requires verification</strong> banner that supersedes normal obligation chrome with a colored block and a CTA. <strong>Archived</strong> can borrow that same shape — or stay quieter as a tag.
+          </p>
+          <div className="flex gap-5 flex-wrap mb-12">
+            <DetailVariantG />
+            <DetailVariantH />
+          </div>
+
+          <h2 className="font-display font-semibold text-[18px] text-[#1c212b] mb-3">My take</h2>
+          <div className="rounded-xl border p-5 max-w-3xl" style={{ background: '#fff', borderColor: '#e2e2e8' }}>
+            <p className="text-[14px] text-[#1c212b] leading-relaxed">
+              For the <strong>table</strong>: variant <strong>B (side-by-side pills)</strong> or <strong>C (stacked)</strong> are the safest bets — Archived is unmistakably dominant and the underlying status remains queryable for reporting / filtering. <strong>D (compound)</strong> is the most compact but feels like a single state, which it isn't.
+            </p>
+            <p className="text-[14px] text-[#1c212b] leading-relaxed mt-3">
+              For the <strong>detail panel</strong>: variant <strong>G (banner)</strong> is consistent with the DRAFT pattern users already recognize and makes "parent contract was archived" a first-class fact. <strong>H</strong> is right if Archived is considered low-priority metadata rather than a state.
+            </p>
+            <p className="text-[14px] text-[#43474f] leading-relaxed mt-3">
+              Whichever way the table goes, the detail panel and the table should agree — if Archived reads as a pseudo-status in the table (B/C), the detail panel should read it as a banner (G) so the page hierarchy matches.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
